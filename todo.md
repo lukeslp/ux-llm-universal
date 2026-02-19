@@ -7,3 +7,17 @@
 - [x] Run pnpm db:push to sync database schema
 - [x] Test cloud connection end-to-end with API key
 - [x] Write vitest tests for ollama-proxy routes (9 tests passing)
+- [ ] Fix 413 error on image uploads (increase proxy body size limit)
+- [ ] Research dr.eamer.dev/code/api and api-gateway docs
+- [ ] Integrate real web search API tool
+- [ ] Integrate image generation tool
+- [ ] Integrate dr.eamer.dev API tools
+- [ ] Wire all tool results into chat flow and UI
+- [ ] Test end-to-end tool use with streaming
+- [ ] Fix 413 error on image uploads (increase proxy body size limit)
+- [ ] Research dr.eamer.dev/code/api and api-gateway docs
+- [ ] Integrate real web search API tool
+- [ ] Integrate image generation tool
+- [ ] Integrate dr.eamer.dev API tools
+- [ ] Wire all tool results into chat flow and UI
+- [ ] Test end-to-end tool use with streaming
