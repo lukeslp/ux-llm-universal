@@ -140,7 +140,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   connectionMode: 'cloud',
   ollamaUrl: OLLAMA_CLOUD_URL,
   apiKey: '',
-  defaultModel: 'glm4:9b-chat-q4_K_M',
+  defaultModel: 'glm-5',
   systemPrompt: '',
   temperature: 0.7,
   topP: 0.9,

@@ -134,6 +134,17 @@ export function registerOllamaProxy(app: Express) {
     }
   });
 
+  // Server config — tells the frontend if a server-side API key is configured
+  app.get('/api/ollama/config', (_req: Request, res: Response) => {
+    const keyId = process.env.OLLAMA_KEY_ID || '';
+    const keySecret = process.env.OLLAMA_KEY_SECRET || '';
+    const hasKey = (keyId && keySecret) || (process.env.OLLAMA_API_KEY || '').length > 10;
+    res.json({
+      hasServerKey: hasKey,
+      defaultMode: hasKey ? 'cloud' : 'local',
+    });
+  });
+
   // Connection test
   app.get('/api/ollama/health', async (req: Request, res: Response) => {
     try {
@@ -163,7 +174,14 @@ export function registerOllamaProxy(app: Express) {
  */
 function resolveTarget(req: Request): { baseUrl: string; headers: Record<string, string> } {
   const rawUrl = (req.headers['x-ollama-url'] as string) || '';
-  const apiKey = (req.headers['x-ollama-key'] as string) || '';
+  const clientKey = (req.headers['x-ollama-key'] as string) || '';
+
+  // Reconstruct the full Ollama API key from two-part env vars
+  // (workaround: the env system truncates values at period characters)
+  const keyId = process.env.OLLAMA_KEY_ID || '';
+  const keySecret = process.env.OLLAMA_KEY_SECRET || '';
+  const serverKey = keyId && keySecret ? `${keyId}.${keySecret}` : (process.env.OLLAMA_API_KEY || '');
+  const apiKey = clientKey || serverKey;
 
   let baseUrl: string;
   if (!rawUrl || rawUrl === 'cloud' || rawUrl === OLLAMA_CLOUD_URL) {
