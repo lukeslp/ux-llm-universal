@@ -1,6 +1,7 @@
 // ============================================================
-// Ollama API Client — Streaming + Tool Use Support
-// Design: Warm Companion — handles all Ollama communication
+// Ollama API Client — Streaming + Tool Use + Cloud Support
+// Supports: Local, Remote, and Ollama Cloud (ollama.com) API
+// Auth: Bearer token for cloud, none for local
 // ============================================================
 
 import type {
@@ -9,35 +10,78 @@ import type {
   OllamaModel,
   ToolCall,
   AppSettings,
+  ConnectionMode,
 } from './types';
+import { OLLAMA_CLOUD_URL } from './types';
 
 export class OllamaClient {
   private baseUrl: string;
+  private apiKey: string;
+  private connectionMode: ConnectionMode;
 
   constructor(baseUrl: string = 'http://localhost:11434') {
     this.baseUrl = baseUrl.replace(/\/$/, '');
+    this.apiKey = '';
+    this.connectionMode = 'local';
+  }
+
+  configure(settings: { baseUrl: string; apiKey: string; connectionMode: ConnectionMode }) {
+    this.baseUrl = settings.baseUrl.replace(/\/$/, '');
+    this.apiKey = settings.apiKey;
+    this.connectionMode = settings.connectionMode;
   }
 
   setBaseUrl(url: string) {
     this.baseUrl = url.replace(/\/$/, '');
   }
 
-  async listModels(): Promise<OllamaModel[]> {
-    try {
-      const res = await fetch(`${this.baseUrl}/api/tags`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      return data.models || [];
-    } catch (err) {
-      console.error('Failed to list models:', err);
-      throw err;
+  setApiKey(key: string) {
+    this.apiKey = key;
+  }
+
+  setConnectionMode(mode: ConnectionMode) {
+    this.connectionMode = mode;
+  }
+
+  /** Build headers — adds Authorization for cloud/remote with API key */
+  private getHeaders(): Record<string, string> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (this.apiKey) {
+      headers['Authorization'] = `Bearer ${this.apiKey}`;
     }
+    return headers;
+  }
+
+  /** Get the effective base URL based on connection mode */
+  getEffectiveUrl(): string {
+    if (this.connectionMode === 'cloud') {
+      return OLLAMA_CLOUD_URL;
+    }
+    return this.baseUrl;
+  }
+
+  async listModels(): Promise<OllamaModel[]> {
+    const url = `${this.getEffectiveUrl()}/api/tags`;
+    const res = await fetch(url, {
+      headers: this.getHeaders(),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      throw new Error(`HTTP ${res.status}${errText ? ': ' + errText : ''}`);
+    }
+    const data = await res.json();
+    return data.models || [];
   }
 
   async checkConnection(): Promise<boolean> {
     try {
-      const res = await fetch(`${this.baseUrl}/api/tags`, {
-        signal: AbortSignal.timeout(5000),
+      const url = `${this.getEffectiveUrl()}/api/tags`;
+      const res = await fetch(url, {
+        headers: this.getHeaders(),
+        signal: AbortSignal.timeout(8000),
       });
       return res.ok;
     } catch {
@@ -49,9 +93,10 @@ export class OllamaClient {
     request: OllamaChatRequest,
     signal?: AbortSignal
   ): AsyncGenerator<OllamaChatChunk> {
-    const res = await fetch(`${this.baseUrl}/api/chat`, {
+    const url = `${this.getEffectiveUrl()}/api/chat`;
+    const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: this.getHeaders(),
       body: JSON.stringify({ ...request, stream: true }),
       signal,
     });
@@ -105,9 +150,10 @@ export class OllamaClient {
     request: OllamaChatRequest,
     signal?: AbortSignal
   ): Promise<OllamaChatChunk> {
-    const res = await fetch(`${this.baseUrl}/api/chat`, {
+    const url = `${this.getEffectiveUrl()}/api/chat`;
+    const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: this.getHeaders(),
       body: JSON.stringify({ ...request, stream: false }),
       signal,
     });
@@ -166,7 +212,6 @@ export function executeBuiltInTool(
     case 'calculate': {
       const expr = args.expression as string;
       try {
-        // Safe math evaluation using Function constructor
         const result = new Function(`"use strict"; return (${expr})`)();
         return String(result);
       } catch (e) {

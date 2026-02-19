@@ -201,10 +201,14 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     saveConversations(state.conversations);
   }, [state.conversations]);
 
-  // Persist settings
+  // Persist settings and sync client configuration
   useEffect(() => {
     saveSettings(state.settings);
-    ollamaClient.setBaseUrl(state.settings.ollamaUrl);
+    ollamaClient.configure({
+      baseUrl: state.settings.ollamaUrl,
+      apiKey: state.settings.apiKey,
+      connectionMode: state.settings.connectionMode,
+    });
   }, [state.settings]);
 
   // Check connection on mount and when URL changes
@@ -221,7 +225,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       const models = await ollamaClient.listModels();
       dispatch({ type: 'SET_MODELS', payload: models });
     } catch {
-      // Silent fail — models list is optional
+      // Silent fail — not connected to Ollama yet, which is fine
+      dispatch({ type: 'SET_MODELS', payload: [] });
     }
   }, []);
 

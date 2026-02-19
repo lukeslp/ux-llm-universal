@@ -1,7 +1,10 @@
 // ============================================================
 // Ollama GLM-5 Chat — Type Definitions
 // Design: Warm Companion — Friendly Conversational Interface
+// Supports: Local Ollama, Remote Ollama, Ollama Cloud API
 // ============================================================
+
+export type ConnectionMode = 'local' | 'remote' | 'cloud';
 
 export interface OllamaToolFunction {
   name: string;
@@ -114,20 +117,30 @@ export interface OllamaChatChunk {
 }
 
 export interface AppSettings {
+  // Connection
+  connectionMode: ConnectionMode;
   ollamaUrl: string;
+  apiKey: string;
+  // Model
   defaultModel: string;
   systemPrompt: string;
+  // Generation
   temperature: number;
   topP: number;
   maxTokens: number;
+  // Features
   enableTools: boolean;
   enableThinking: boolean;
   streamResponses: boolean;
 }
 
+export const OLLAMA_CLOUD_URL = 'https://ollama.com';
+
 export const DEFAULT_SETTINGS: AppSettings = {
-  ollamaUrl: 'http://localhost:11434',
-  defaultModel: 'glm-5',
+  connectionMode: 'cloud',
+  ollamaUrl: OLLAMA_CLOUD_URL,
+  apiKey: '',
+  defaultModel: 'glm4:9b-chat-q4_K_M',
   systemPrompt: '',
   temperature: 0.7,
   topP: 0.9,

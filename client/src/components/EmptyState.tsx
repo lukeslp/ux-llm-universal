@@ -107,10 +107,30 @@ export default function EmptyState() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="mt-6 flex items-center justify-center gap-2 text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 px-4 py-2 rounded-full"
+            className="mt-6 flex flex-col items-center gap-2 text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 px-5 py-3 rounded-2xl max-w-sm"
           >
-            <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-            <span>Not connected to Ollama — check Settings to connect</span>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+              <span className="font-medium">
+                {state.settings.connectionMode === 'cloud'
+                  ? 'Not connected — add your API key in Settings'
+                  : 'Not connected to Ollama — check Settings'
+                }
+              </span>
+            </div>
+            {state.settings.connectionMode === 'cloud' && !state.settings.apiKey && (
+              <p className="text-xs text-amber-500/70 dark:text-amber-400/60 text-center">
+                Get a free API key at{' '}
+                <a
+                  href="https://ollama.com/settings/keys"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline hover:text-amber-600 dark:hover:text-amber-300"
+                >
+                  ollama.com/settings/keys
+                </a>
+              </p>
+            )}
           </motion.div>
         )}
       </motion.div>

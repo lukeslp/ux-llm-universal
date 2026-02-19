@@ -117,6 +117,8 @@ export default function Home() {
                 <h1 className="text-sm font-bold leading-tight">Ollama Chat</h1>
                 <p className="text-xs text-muted-foreground leading-tight">
                   {state.settings.defaultModel}
+                  <span className="text-muted-foreground/40 mx-1">·</span>
+                  <span className="capitalize">{state.settings.connectionMode === 'cloud' ? 'Cloud' : state.settings.connectionMode === 'remote' ? 'Remote' : 'Local'}</span>
                 </p>
               </div>
             </div>
