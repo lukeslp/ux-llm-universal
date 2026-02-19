@@ -1,7 +1,7 @@
 // ============================================================
-// Ollama API Client — Streaming + Tool Use + Cloud Support
-// Supports: Local, Remote, and Ollama Cloud (ollama.com) API
-// Auth: Bearer token for cloud, none for local
+// Ollama API Client — Uses Backend Proxy to bypass CORS
+// All requests go through /api/ollama/* on our server
+// The server relays to the actual Ollama endpoint
 // ============================================================
 
 import type {
@@ -19,10 +19,10 @@ export class OllamaClient {
   private apiKey: string;
   private connectionMode: ConnectionMode;
 
-  constructor(baseUrl: string = 'http://localhost:11434') {
-    this.baseUrl = baseUrl.replace(/\/$/, '');
+  constructor() {
+    this.baseUrl = OLLAMA_CLOUD_URL;
     this.apiKey = '';
-    this.connectionMode = 'local';
+    this.connectionMode = 'cloud';
   }
 
   configure(settings: { baseUrl: string; apiKey: string; connectionMode: ConnectionMode }) {
@@ -43,34 +43,35 @@ export class OllamaClient {
     this.connectionMode = mode;
   }
 
-  /** Build headers — adds Authorization for cloud/remote with API key */
-  private getHeaders(): Record<string, string> {
+  /** Build proxy headers — tells the backend where to relay */
+  private getProxyHeaders(): Record<string, string> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
-    if (this.apiKey) {
-      headers['Authorization'] = `Bearer ${this.apiKey}`;
+
+    // Tell the proxy which Ollama server to target
+    if (this.connectionMode === 'cloud') {
+      headers['x-ollama-url'] = 'cloud';
+    } else {
+      headers['x-ollama-url'] = this.baseUrl;
     }
+
+    // Pass the API key to the proxy
+    if (this.apiKey) {
+      headers['x-ollama-key'] = this.apiKey;
+    }
+
     return headers;
   }
 
-  /** Get the effective base URL based on connection mode */
-  getEffectiveUrl(): string {
-    if (this.connectionMode === 'cloud') {
-      return OLLAMA_CLOUD_URL;
-    }
-    return this.baseUrl;
-  }
-
   async listModels(): Promise<OllamaModel[]> {
-    const url = `${this.getEffectiveUrl()}/api/tags`;
-    const res = await fetch(url, {
-      headers: this.getHeaders(),
-      signal: AbortSignal.timeout(8000),
+    const res = await fetch('/api/ollama/tags', {
+      headers: this.getProxyHeaders(),
+      signal: AbortSignal.timeout(15000),
     });
     if (!res.ok) {
-      const errText = await res.text().catch(() => '');
-      throw new Error(`HTTP ${res.status}${errText ? ': ' + errText : ''}`);
+      const data = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+      throw new Error(data.error || data.details || `HTTP ${res.status}`);
     }
     const data = await res.json();
     return data.models || [];
@@ -78,12 +79,13 @@ export class OllamaClient {
 
   async checkConnection(): Promise<boolean> {
     try {
-      const url = `${this.getEffectiveUrl()}/api/tags`;
-      const res = await fetch(url, {
-        headers: this.getHeaders(),
-        signal: AbortSignal.timeout(8000),
+      const res = await fetch('/api/ollama/health', {
+        headers: this.getProxyHeaders(),
+        signal: AbortSignal.timeout(10000),
       });
-      return res.ok;
+      if (!res.ok) return false;
+      const data = await res.json();
+      return data.connected === true;
     } catch {
       return false;
     }
@@ -93,17 +95,16 @@ export class OllamaClient {
     request: OllamaChatRequest,
     signal?: AbortSignal
   ): AsyncGenerator<OllamaChatChunk> {
-    const url = `${this.getEffectiveUrl()}/api/chat`;
-    const res = await fetch(url, {
+    const res = await fetch('/api/ollama/chat/stream', {
       method: 'POST',
-      headers: this.getHeaders(),
-      body: JSON.stringify({ ...request, stream: true }),
+      headers: this.getProxyHeaders(),
+      body: JSON.stringify(request),
       signal,
     });
 
     if (!res.ok) {
-      const errText = await res.text().catch(() => 'Unknown error');
-      throw new Error(`Ollama error (${res.status}): ${errText}`);
+      const data = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+      throw new Error(data.error || data.details || `Ollama error (${res.status})`);
     }
 
     const reader = res.body?.getReader();
@@ -150,17 +151,16 @@ export class OllamaClient {
     request: OllamaChatRequest,
     signal?: AbortSignal
   ): Promise<OllamaChatChunk> {
-    const url = `${this.getEffectiveUrl()}/api/chat`;
-    const res = await fetch(url, {
+    const res = await fetch('/api/ollama/chat', {
       method: 'POST',
-      headers: this.getHeaders(),
-      body: JSON.stringify({ ...request, stream: false }),
+      headers: this.getProxyHeaders(),
+      body: JSON.stringify(request),
       signal,
     });
 
     if (!res.ok) {
-      const errText = await res.text().catch(() => 'Unknown error');
-      throw new Error(`Ollama error (${res.status}): ${errText}`);
+      const data = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+      throw new Error(data.error || data.details || `Ollama error (${res.status})`);
     }
 
     return res.json();
