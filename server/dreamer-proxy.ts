@@ -170,6 +170,61 @@ function getProviderKeys(): Record<string, string> {
 
 // ============================================================
 
+// --- Tool registry cache ---
+interface ToolSchema {
+  name: string;
+  module: string;
+  schema: {
+    type: 'function';
+    function: {
+      name: string;
+      description: string;
+      parameters: {
+        type: string;
+        required?: string[];
+        properties: Record<string, unknown>;
+      };
+    };
+  };
+}
+
+let toolsCache: { tools: ToolSchema[]; ts: number } | null = null;
+const TOOLS_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+async function fetchToolRegistry(dreamerUrl: string, dreamerKey: string): Promise<ToolSchema[]> {
+  if (toolsCache && Date.now() - toolsCache.ts < TOOLS_CACHE_TTL) {
+    return toolsCache.tools;
+  }
+  try {
+    const res = await fetch(`${dreamerUrl}/v1/tools`, {
+      headers: { 'X-API-Key': dreamerKey },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return toolsCache?.tools || [];
+    const data = await res.json() as { tools: ToolSchema[] };
+    toolsCache = { tools: data.tools || [], ts: Date.now() };
+    return toolsCache.tools;
+  } catch {
+    return toolsCache?.tools || [];
+  }
+}
+
+// --- Tool category mapping ---
+const TOOL_CATEGORIES: Record<string, { name: string; icon: string; description: string }> = {
+  archive_data: { name: 'Web Archive', icon: '📦', description: 'Wayback Machine snapshots and archiving' },
+  arxiv_data: { name: 'arXiv', icon: '📄', description: 'Academic paper search and retrieval' },
+  census_data: { name: 'Census', icon: '📊', description: 'US Census population and ACS data' },
+  finance_data: { name: 'Finance', icon: '💰', description: 'Stock prices, forex, and crypto quotes' },
+  github_data: { name: 'GitHub', icon: '🐙', description: 'Repository, code, and issue search' },
+  nasa_data: { name: 'NASA', icon: '🚀', description: 'APOD, Mars photos, Earth imagery, NEOs' },
+  news_data: { name: 'News', icon: '📰', description: 'Headlines, search, and news sources' },
+  openlibrary_data: { name: 'Open Library', icon: '📚', description: 'Book and author search' },
+  semantic_scholar_data: { name: 'Semantic Scholar', icon: '🎓', description: 'Academic paper and author search' },
+  weather_data: { name: 'Weather', icon: '🌤️', description: 'Current weather, forecasts, and alerts' },
+  wikipedia_data: { name: 'Wikipedia', icon: '🌐', description: 'Article search and content retrieval' },
+  youtube_data: { name: 'YouTube', icon: '▶️', description: 'Video search, channel stats, playlists' },
+};
+
 export function registerDreamerProxy(app: Express) {
   const dreamerUrl = (process.env.DREAMER_API_URL || 'http://localhost:5200').replace(/\/$/, '');
   const dreamerKey = process.env.DREAMER_API_KEY || '';
@@ -205,6 +260,98 @@ export function registerDreamerProxy(app: Express) {
 
     res.json({ providers });
   });
+
+  // ---- Tool Registry Endpoints ----
+
+  // List all available tools with categories
+  app.get('/api/tools', async (_req: Request, res: Response) => {
+    try {
+      const tools = await fetchToolRegistry(dreamerUrl, dreamerKey);
+      // Group by module
+      const categories: Record<string, { name: string; icon: string; description: string; tools: Array<{ name: string; description: string; parameters: unknown }> }> = {};
+
+      for (const tool of tools) {
+        const mod = tool.module || 'other';
+        if (!categories[mod]) {
+          const meta = TOOL_CATEGORIES[mod] || { name: mod, icon: '🔧', description: '' };
+          categories[mod] = { ...meta, tools: [] };
+        }
+        categories[mod].tools.push({
+          name: tool.name,
+          description: tool.schema?.function?.description || '',
+          parameters: tool.schema?.function?.parameters || {},
+        });
+      }
+
+      res.json({
+        categories,
+        tools: tools.map(t => ({
+          name: t.name,
+          module: t.module,
+          description: t.schema?.function?.description || '',
+          parameters: t.schema?.function?.parameters || {},
+        })),
+        count: tools.length,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to fetch tools';
+      res.status(500).json({ error: msg });
+    }
+  });
+
+  // Execute a tool by name
+  app.post('/api/tools/execute', async (req: Request, res: Response) => {
+    const { name, arguments: args } = req.body;
+    if (!name) {
+      res.status(400).json({ error: 'Tool name is required' });
+      return;
+    }
+    if (!dreamerKey) {
+      res.status(503).json({ error: 'API gateway not configured' });
+      return;
+    }
+    try {
+      const response = await fetch(`${dreamerUrl}/v1/tools/${encodeURIComponent(name)}`, {
+        method: 'POST',
+        headers: {
+          'X-API-Key': dreamerKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(args || {}),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        res.status(response.status).json({ error: data.error || `Tool execution failed (${response.status})`, result: data });
+        return;
+      }
+      res.json(data);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Tool execution error';
+      res.status(500).json({ error: msg });
+    }
+  });
+
+  // Get tool schemas in Ollama/OpenAI function-calling format
+  app.get('/api/tools/schemas', async (_req: Request, res: Response) => {
+    try {
+      const tools = await fetchToolRegistry(dreamerUrl, dreamerKey);
+      // Convert to OpenAI-compatible tool format
+      const schemas = tools.map(t => ({
+        type: 'function' as const,
+        function: {
+          name: t.name,
+          description: t.schema?.function?.description || t.name,
+          parameters: t.schema?.function?.parameters || { type: 'object', properties: {} },
+        },
+      }));
+      res.json({ tools: schemas });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to fetch tool schemas';
+      res.status(500).json({ error: msg });
+    }
+  });
+
+  // ---- Streaming Chat ----
 
   // Streaming chat routed through dreamer
   app.post('/api/dreamer/chat/stream', async (req: Request, res: Response) => {

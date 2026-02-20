@@ -21,6 +21,7 @@ import {
   Moon,
   Palette,
   ExternalLink,
+  Wrench,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -472,34 +473,32 @@ export default function SettingsPanel() {
                 />
               </div>
 
-              {isOllama && (
-                <>
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <Label className="text-sm font-medium">Tool Use</Label>
-                      <p className="text-xs text-muted-foreground/60">
-                        Let the model use built-in tools like calculators
-                      </p>
-                    </div>
-                    <Switch
-                      checked={settings.enableTools}
-                      onCheckedChange={v => updateSetting('enableTools', v)}
-                    />
-                  </div>
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <Label className="text-sm font-medium">Tool Use</Label>
+                  <p className="text-xs text-muted-foreground/60">
+                    Let the model use tools (weather, search, finance, etc.)
+                  </p>
+                </div>
+                <Switch
+                  checked={settings.enableTools}
+                  onCheckedChange={v => updateSetting('enableTools', v)}
+                />
+              </div>
 
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <Label className="text-sm font-medium">Show Thinking</Label>
-                      <p className="text-xs text-muted-foreground/60">
-                        See the model's reasoning (if supported)
-                      </p>
-                    </div>
-                    <Switch
-                      checked={settings.enableThinking}
-                      onCheckedChange={v => updateSetting('enableThinking', v)}
-                    />
+              {isOllama && (
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <Label className="text-sm font-medium">Show Thinking</Label>
+                    <p className="text-xs text-muted-foreground/60">
+                      See the model's reasoning (if supported)
+                    </p>
                   </div>
-                </>
+                  <Switch
+                    checked={settings.enableThinking}
+                    onCheckedChange={v => updateSetting('enableThinking', v)}
+                  />
+                </div>
               )}
             </div>
           </section>
@@ -528,6 +527,65 @@ export default function SettingsPanel() {
           </section>
 
           <Separator />
+
+          {/* Tool Categories */}
+          {settings.enableTools && state.toolRegistry && Object.keys(state.toolRegistry.categories).length > 0 && (
+            <>
+              <section>
+                <div className="flex items-center gap-2 mb-3">
+                  <Wrench className="w-4 h-4 text-primary" />
+                  <h3 className="font-semibold text-sm">Available Tools</h3>
+                  <span className="ml-auto text-xs text-muted-foreground/60">
+                    {state.toolRegistry.count} tools
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {Object.entries(state.toolRegistry.categories).map(([moduleId, cat]) => {
+                    const isEnabled = settings.enabledToolModules.length === 0 || settings.enabledToolModules.includes(moduleId);
+                    return (
+                      <div
+                        key={moduleId}
+                        className="flex items-center justify-between py-1.5"
+                      >
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <span className="text-base">{cat.icon}</span>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate">{cat.name}</p>
+                            <p className="text-xs text-muted-foreground/60 truncate">
+                              {cat.tools.length} tool{cat.tools.length !== 1 ? 's' : ''}
+                            </p>
+                          </div>
+                        </div>
+                        <Switch
+                          checked={isEnabled}
+                          onCheckedChange={(checked) => {
+                            let modules = [...settings.enabledToolModules];
+                            if (checked) {
+                              // If enabling and we had a filter, add this module
+                              if (modules.length > 0) {
+                                modules.push(moduleId);
+                              }
+                              // If enabling and no filter existed, do nothing (all enabled)
+                            } else {
+                              // If disabling, we need to create a filter
+                              if (modules.length === 0) {
+                                // Currently all enabled — create filter with all EXCEPT this one
+                                modules = Object.keys(state.toolRegistry!.categories).filter(m => m !== moduleId);
+                              } else {
+                                modules = modules.filter(m => m !== moduleId);
+                              }
+                            }
+                            updateSetting('enabledToolModules', modules);
+                          }}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+              <Separator />
+            </>
+          )}
 
           {/* Links */}
           <section>

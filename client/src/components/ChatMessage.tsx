@@ -22,13 +22,54 @@ import RichEmbed, { extractUrls } from '@/components/RichEmbed';
 
 const AI_AVATAR_URL = 'https://private-us-east-1.manuscdn.com/sessionFile/ZczeSqT83YLrkFvT86EGKx/sandbox/zSRkqiRASQwD6PeiLPQbhP-img-2_1771472983000_na1fn_YWktYXZhdGFy.png?x-oss-process=image/resize,w_1920,h_1920/format,webp/quality,q_80&Expires=1798761600&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9wcml2YXRlLXVzLWVhc3QtMS5tYW51c2Nkbi5jb20vc2Vzc2lvbkZpbGUvWmN6ZVNxVDgzWUxya0Z2VDg2RUdLeC9zYW5kYm94L3pTUmtxaVJBU1F3RDZQZWlMUFFiaFAtaW1nLTJfMTc3MTQ3Mjk4MzAwMF9uYTFmbl9ZV2t0WVhaaGRHRnkucG5nP3gtb3NzLXByb2Nlc3M9aW1hZ2UvcmVzaXplLHdfMTkyMCxoXzE5MjAvZm9ybWF0LHdlYnAvcXVhbGl0eSxxXzgwIiwiQ29uZGl0aW9uIjp7IkRhdGVMZXNzVGhhbiI6eyJBV1M6RXBvY2hUaW1lIjoxNzk4NzYxNjAwfX19XX0_&Key-Pair-Id=K2HSFNDJXOU9YS&Signature=gXGJ1cfIoY64fheopaxagmOvfKFwGzRqRVORx-eg2zT9c4ozItE6M46llD-Wja9fq52RR17GgTyTjk-zDVfrWdWO3aLwc7ZolMdck81S1d8nk~l-NNPuz0srkYT2Wwr-mIxaQzPv1Hug-ta1i-LaFwDKZ~sM2w1BPX8mdV3cavAlreYXQGtzKFEbM8RWMiPEb4pvNYzxILQ4q-Z~83tlcQ5nhUg1ybw02ptnZpfJ2d1VO~~ctbMw82QEUdX7ccH4rLU7nYNor4Us0dDEe1AAXZLPQkQ5~ESN8uPEkfSkJQtA0Qp5GI6JukrbLmMx49kpvQy6yh4BkntXvXp33dogGg__';
 
-// Friendly tool name mapping
+// Friendly tool name mapping — includes builtins + common API gateway tools
 const TOOL_LABELS: Record<string, { label: string; description: string }> = {
+  // Builtins
   get_current_time: { label: 'Checking the time', description: 'Looking up the current date and time' },
   calculate: { label: 'Doing math', description: 'Running a calculation' },
-  web_search: { label: 'Searching the web', description: 'Looking up information online' },
-  generate_image: { label: 'Creating an image', description: 'Generating a visual' },
+  // Weather
+  get_current_weather: { label: 'Checking weather', description: 'Getting current conditions' },
+  get_weather_forecast: { label: 'Getting forecast', description: 'Looking up weather forecast' },
+  get_weather_alerts: { label: 'Checking alerts', description: 'Looking for weather alerts' },
+  // News
+  get_top_headlines: { label: 'Reading headlines', description: 'Fetching top news stories' },
+  search_news: { label: 'Searching news', description: 'Looking for news articles' },
+  // Finance
+  get_stock_quote: { label: 'Checking stocks', description: 'Looking up stock price' },
+  get_forex_rate: { label: 'Checking forex', description: 'Looking up exchange rate' },
+  get_crypto_quote: { label: 'Checking crypto', description: 'Looking up crypto price' },
+  // GitHub
+  search_github_repos: { label: 'Searching GitHub', description: 'Looking for repositories' },
+  search_github_code: { label: 'Searching code', description: 'Looking for code on GitHub' },
+  get_github_repo_info: { label: 'Checking repo', description: 'Getting repository details' },
+  // NASA
+  get_nasa_apod: { label: 'NASA APOD', description: 'Getting Astronomy Picture of the Day' },
+  get_mars_rover_photos: { label: 'Mars photos', description: 'Getting Mars rover images' },
+  // Wikipedia
+  search_wikipedia: { label: 'Searching Wikipedia', description: 'Looking up an article' },
+  get_wikipedia_article: { label: 'Reading Wikipedia', description: 'Getting article content' },
+  // YouTube
+  search_youtube: { label: 'Searching YouTube', description: 'Looking for videos' },
+  // arXiv
+  search_arxiv: { label: 'Searching arXiv', description: 'Looking for academic papers' },
+  // Books
+  search_books: { label: 'Searching books', description: 'Looking for books' },
+  // Semantic Scholar
+  search_papers: { label: 'Searching papers', description: 'Looking for research papers' },
+  // Census
+  get_population: { label: 'Census lookup', description: 'Getting population data' },
+  // Archive
+  get_wayback_snapshot: { label: 'Web archive', description: 'Looking up archived page' },
 };
+
+/** Generate a friendly label from a tool name like "get_stock_quote" → "Getting stock quote" */
+function getToolLabel(name: string): { label: string; description: string } {
+  if (TOOL_LABELS[name]) return TOOL_LABELS[name];
+  // Dynamic fallback: convert snake_case to readable
+  const readable = name.replace(/_/g, ' ').replace(/^(get|search|fetch)\s/, '');
+  const capitalized = readable.charAt(0).toUpperCase() + readable.slice(1);
+  return { label: capitalized, description: `Running ${readable}...` };
+}
 
 interface Props {
   message: ChatMessageType;
@@ -65,7 +106,7 @@ export default function ChatMessage({ message, isLast }: Props) {
 
   // Tool result message — friendly card style
   if (isTool) {
-    const toolInfo = TOOL_LABELS[message.toolName || ''];
+    const toolInfo = getToolLabel(message.toolName || '');
     return (
       <motion.div
         initial={{ opacity: 0, y: 8 }}
@@ -82,9 +123,9 @@ export default function ChatMessage({ message, isLast }: Props) {
               </div>
               <div>
                 <span className="text-xs font-semibold text-amber-800 dark:text-amber-300">
-                  {toolInfo?.label || message.toolName || 'Tool Result'}
+                  {toolInfo.label || message.toolName || 'Tool Result'}
                 </span>
-                {toolInfo?.description && (
+                {toolInfo.description && (
                   <p className="text-xs text-amber-600/70 dark:text-amber-400/60">{toolInfo.description}</p>
                 )}
               </div>
@@ -170,7 +211,7 @@ export default function ChatMessage({ message, isLast }: Props) {
         {isAssistant && message.toolCalls && message.toolCalls.length > 0 && (
           <div className="mb-2 space-y-2 w-full max-w-lg">
             {message.toolCalls.map((tc, i) => {
-              const toolInfo = TOOL_LABELS[tc.function.name];
+              const toolInfo = getToolLabel(tc.function.name);
               return (
                 <motion.div
                   key={i}
@@ -184,10 +225,10 @@ export default function ChatMessage({ message, isLast }: Props) {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-blue-800 dark:text-blue-300">
-                        {toolInfo?.label || tc.function.name.replace(/_/g, ' ')}
+                        {toolInfo.label || tc.function.name.replace(/_/g, ' ')}
                       </p>
                       <p className="text-xs text-blue-600/70 dark:text-blue-400/60">
-                        {toolInfo?.description || 'Running a tool...'}
+                        {toolInfo.description || 'Running a tool...'}
                       </p>
                     </div>
                   </div>

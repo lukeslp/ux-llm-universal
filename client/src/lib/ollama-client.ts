@@ -196,41 +196,8 @@ export class OllamaClient {
   }
 }
 
-// Execute built-in tools locally
-export function executeBuiltInTool(
-  toolName: string,
-  args: Record<string, unknown>
-): string {
-  switch (toolName) {
-    case 'get_current_time': {
-      const tz = (args.timezone as string) || Intl.DateTimeFormat().resolvedOptions().timeZone;
-      try {
-        return new Date().toLocaleString('en-US', { timeZone: tz, dateStyle: 'full', timeStyle: 'long' });
-      } catch {
-        return new Date().toLocaleString();
-      }
-    }
-    case 'calculate': {
-      const expr = args.expression as string;
-      try {
-        const result = new Function(`"use strict"; return (${expr})`)();
-        return String(result);
-      } catch (e) {
-        return `Error: Could not evaluate "${expr}" — ${e instanceof Error ? e.message : 'unknown error'}`;
-      }
-    }
-    case 'web_search': {
-      const query = args.query as string;
-      return `[Web search results for "${query}" would appear here. Connect to a search API for real results.]`;
-    }
-    case 'generate_image': {
-      const prompt = args.prompt as string;
-      return `[Image generation for "${prompt}" would appear here. Connect to an image generation API for real results.]`;
-    }
-    default:
-      return `Unknown tool: ${toolName}`;
-  }
-}
+// Tool execution is now handled by tool-service.ts
+// import { executeTool } from './tool-service' for builtin + remote tool execution
 
 // Singleton client
 export const ollamaClient = new OllamaClient();

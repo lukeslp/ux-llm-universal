@@ -133,6 +133,9 @@ export interface AppSettings {
   enableTools: boolean;
   enableThinking: boolean;
   streamResponses: boolean;
+  // Tool modules — which remote tool categories are enabled
+  // Empty array = all enabled; populated = only those modules
+  enabledToolModules: string[];
 }
 
 export const OLLAMA_CLOUD_URL = 'https://ollama.com';
@@ -149,75 +152,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   enableTools: true,
   enableThinking: false,
   streamResponses: true,
+  enabledToolModules: [], // empty = all enabled
 };
 
-// Built-in tools that the frontend can handle
-export const BUILT_IN_TOOLS: OllamaTool[] = [
-  {
-    type: 'function',
-    function: {
-      name: 'get_current_time',
-      description: 'Get the current date and time',
-      parameters: {
-        type: 'object',
-        properties: {
-          timezone: {
-            type: 'string',
-            description: 'The timezone to get the time for, e.g. "America/New_York"',
-          },
-        },
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'calculate',
-      description: 'Perform a mathematical calculation',
-      parameters: {
-        type: 'object',
-        required: ['expression'],
-        properties: {
-          expression: {
-            type: 'string',
-            description: 'The mathematical expression to evaluate, e.g. "2 + 2" or "Math.sqrt(144)"',
-          },
-        },
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'web_search',
-      description: 'Search the web for information on a topic',
-      parameters: {
-        type: 'object',
-        required: ['query'],
-        properties: {
-          query: {
-            type: 'string',
-            description: 'The search query',
-          },
-        },
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'generate_image',
-      description: 'Generate a description for an image based on a prompt',
-      parameters: {
-        type: 'object',
-        required: ['prompt'],
-        properties: {
-          prompt: {
-            type: 'string',
-            description: 'The image generation prompt',
-          },
-        },
-      },
-    },
-  },
-];
+// Built-in tools are now defined in tool-service.ts
+// Remote tools are fetched dynamically from the API gateway

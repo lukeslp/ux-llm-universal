@@ -3,7 +3,7 @@
 // Design: Warm Companion — manages all chat state
 // ============================================================
 
-import React, { createContext, useContext, useReducer, useCallback, useRef, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useCallback, useRef, useEffect, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import type {
   ChatMessage,
@@ -13,10 +13,17 @@ import type {
   OllamaModel,
   ToolCall,
 } from '@/lib/types';
-import { DEFAULT_SETTINGS, BUILT_IN_TOOLS } from '@/lib/types';
-import { ollamaClient, executeBuiltInTool } from '@/lib/ollama-client';
+import { DEFAULT_SETTINGS } from '@/lib/types';
+import { ollamaClient } from '@/lib/ollama-client';
 import { fetchProviders, streamDreamerChat } from '@/lib/dreamer-client';
 import type { Provider } from '@/lib/dreamer-client';
+import {
+  getToolSchemas,
+  executeTool,
+  fetchToolRegistry,
+  type ToolRegistry,
+  type ToolCategory,
+} from '@/lib/tool-service';
 
 // State
 interface ChatState {
@@ -30,6 +37,8 @@ interface ChatState {
   error: string | null;
   sidebarOpen: boolean;
   settingsOpen: boolean;
+  toolRegistry: ToolRegistry | null;
+  toolSchemas: OllamaTool[];
 }
 
 const initialState: ChatState = {
@@ -43,6 +52,8 @@ const initialState: ChatState = {
   error: null,
   sidebarOpen: false,
   settingsOpen: false,
+  toolRegistry: null,
+  toolSchemas: [],
 };
 
 // Actions
@@ -63,7 +74,9 @@ type ChatAction =
   | { type: 'TOGGLE_SIDEBAR' }
   | { type: 'SET_SIDEBAR'; payload: boolean }
   | { type: 'TOGGLE_SETTINGS' }
-  | { type: 'SET_SETTINGS_OPEN'; payload: boolean };
+  | { type: 'SET_SETTINGS_OPEN'; payload: boolean }
+  | { type: 'SET_TOOL_REGISTRY'; payload: ToolRegistry }
+  | { type: 'SET_TOOL_SCHEMAS'; payload: OllamaTool[] };
 
 function chatReducer(state: ChatState, action: ChatAction): ChatState {
   switch (action.type) {
@@ -138,6 +151,10 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
       return { ...state, settingsOpen: !state.settingsOpen };
     case 'SET_SETTINGS_OPEN':
       return { ...state, settingsOpen: action.payload };
+    case 'SET_TOOL_REGISTRY':
+      return { ...state, toolRegistry: action.payload };
+    case 'SET_TOOL_SCHEMAS':
+      return { ...state, toolSchemas: action.payload };
     default:
       return state;
   }
@@ -153,6 +170,7 @@ interface ChatContextType {
   stopGeneration: () => void;
   refreshModels: () => Promise<void>;
   refreshProviders: () => Promise<void>;
+  refreshTools: () => Promise<void>;
   checkConnection: () => Promise<void>;
   activeConversation: Conversation | null;
 }
@@ -235,7 +253,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       const models = await ollamaClient.listModels();
       dispatch({ type: 'SET_MODELS', payload: models });
     } catch {
-      // Silent fail — not connected to Ollama yet, which is fine
       dispatch({ type: 'SET_MODELS', payload: [] });
     }
   }, []);
@@ -249,13 +266,31 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Fetch tool registry and build schemas
+  const refreshTools = useCallback(async () => {
+    try {
+      const registry = await fetchToolRegistry();
+      dispatch({ type: 'SET_TOOL_REGISTRY', payload: registry });
+
+      // Build tool schemas with module filtering
+      const enabledModules = state.settings.enabledToolModules.length > 0
+        ? new Set(state.settings.enabledToolModules)
+        : undefined; // undefined = all enabled
+      const schemas = await getToolSchemas(enabledModules);
+      dispatch({ type: 'SET_TOOL_SCHEMAS', payload: schemas });
+    } catch {
+      // Silently fail — builtins still work
+    }
+  }, [state.settings.enabledToolModules]);
+
   useEffect(() => {
     checkConnection();
     refreshModels();
     refreshProviders();
+    refreshTools();
     const interval = setInterval(checkConnection, 30000);
     return () => clearInterval(interval);
-  }, [checkConnection, refreshModels, refreshProviders]);
+  }, [checkConnection, refreshModels, refreshProviders, refreshTools]);
 
   const activeConversation = state.conversations.find(c => c.id === state.activeConversationId) || null;
 
@@ -295,11 +330,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       convId = createConversation();
     }
 
-    // Get the latest conversation state
-    const conv = state.conversations.find(c => c.id === convId);
-    if (!conv && convId !== state.activeConversationId) {
-      // New conversation was just created, it's in the next render
-    }
+    const currentConv = state.conversations.find(c => c.id === convId);
 
     // Add user message
     const userMsg: ChatMessage = {
@@ -312,7 +343,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'ADD_MESSAGE', payload: { conversationId: convId!, message: userMsg } });
 
     // Auto-title from first message
-    const currentConv = state.conversations.find(c => c.id === convId);
     if (!currentConv || currentConv.messages.length === 0) {
       const title = content.slice(0, 50) + (content.length > 50 ? '...' : '');
       dispatch({ type: 'UPDATE_CONVERSATION', payload: { id: convId!, updates: { title } } });
@@ -355,6 +385,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     abortRef.current = abortController;
 
     const isOllama = !state.settings.provider || state.settings.provider === 'ollama';
+
+    // Get current tool schemas (builtins + remote)
+    const currentTools = state.settings.enableTools ? state.toolSchemas : [];
 
     try {
       let fullContent = '';
@@ -403,9 +436,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       // Ollama path
       const request = ollamaClient.buildRequest(apiMessages, state.settings);
 
-      // Add tools if enabled
-      if (state.settings.enableTools) {
-        request.tools = BUILT_IN_TOOLS;
+      // Add dynamic tools if enabled
+      if (state.settings.enableTools && currentTools.length > 0) {
+        request.tools = currentTools;
       }
 
       if (state.settings.streamResponses) {
@@ -458,7 +491,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // Handle tool calls
+      // Handle tool calls — execute via tool-service (builtin or remote)
       if (collectedToolCalls.length > 0) {
         dispatch({
           type: 'UPDATE_MESSAGE',
@@ -474,24 +507,44 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           },
         });
 
-        // Execute tools and send results back
+        // Execute each tool call (async — may be remote)
+        const toolResults: Array<{ name: string; result: string }> = [];
         for (const tc of collectedToolCalls) {
-          const toolResult = executeBuiltInTool(tc.function.name, tc.function.arguments);
-          
-          // Add tool result message
+          // Show pending tool execution in UI
           const toolMsg: ChatMessage = {
             id: uuidv4(),
             role: 'tool',
-            content: toolResult,
+            content: '',
             toolName: tc.function.name,
             timestamp: Date.now(),
             toolResults: [{
               toolName: tc.function.name,
-              result: toolResult,
-              status: 'success',
+              result: '',
+              status: 'running',
             }],
           };
           dispatch({ type: 'ADD_MESSAGE', payload: { conversationId: convId!, message: toolMsg } });
+
+          // Execute the tool (routes to builtin or remote via tool-service)
+          const result = await executeTool(tc.function.name, tc.function.arguments);
+          toolResults.push({ name: tc.function.name, result });
+
+          // Update tool message with result
+          dispatch({
+            type: 'UPDATE_MESSAGE',
+            payload: {
+              conversationId: convId!,
+              messageId: toolMsg.id,
+              updates: {
+                content: result,
+                toolResults: [{
+                  toolName: tc.function.name,
+                  result,
+                  status: 'success',
+                }],
+              },
+            },
+          });
         }
 
         // Send tool results back to model for final response
@@ -502,10 +555,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             content: fullContent,
             tool_calls: collectedToolCalls,
           },
-          ...collectedToolCalls.map(tc => ({
+          ...toolResults.map(tr => ({
             role: 'tool' as const,
-            content: executeBuiltInTool(tc.function.name, tc.function.arguments),
-            tool_name: tc.function.name,
+            content: tr.result,
+            tool_name: tr.name,
           })),
         ];
 
@@ -592,7 +645,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       dispatch({ type: 'SET_GENERATING', payload: false });
       abortRef.current = null;
     }
-  }, [state.activeConversationId, state.conversations, state.settings, createConversation]);
+  }, [state.activeConversationId, state.conversations, state.settings, state.toolSchemas, createConversation]);
 
   return (
     <ChatContext.Provider
@@ -605,6 +658,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         stopGeneration,
         refreshModels,
         refreshProviders,
+        refreshTools,
         checkConnection,
         activeConversation,
       }}
