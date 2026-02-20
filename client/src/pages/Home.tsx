@@ -3,9 +3,16 @@
 // Design: Warm Companion — clean, responsive chat layout
 // ============================================================
 
-import { useRef, useEffect, useMemo, useState } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { Menu, Settings, Sparkles, Plus, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Sheet,
   SheetContent,
@@ -21,9 +28,27 @@ import Sidebar from '@/components/Sidebar';
 import SettingsPanel from '@/components/SettingsPanel';
 import EmptyState from '@/components/EmptyState';
 import ConnectionStatus from '@/components/ConnectionStatus';
+import type { AppSettings } from '@/lib/types';
 
 export default function Home() {
   const { state, dispatch, activeConversation, createConversation } = useChat();
+
+  const isOllama = !state.settings.provider || state.settings.provider === 'ollama';
+  const currentProvider = state.providers.find(p => p.id === state.settings.provider);
+  const providerModels = isOllama
+    ? state.models.map(m => m.name)
+    : (currentProvider?.models || []);
+
+  const handleProviderChange = (id: string) => {
+    const p = state.providers.find(pr => pr.id === id);
+    const updates: Partial<AppSettings> = { provider: id };
+    if (id !== 'ollama' && p?.models.length) {
+      updates.defaultModel = p.models[0];
+    } else if (id === 'ollama') {
+      updates.defaultModel = 'glm-5';
+    }
+    dispatch({ type: 'SET_SETTINGS', payload: updates });
+  };
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -108,24 +133,49 @@ export default function Home() {
               <Menu className="w-5 h-5" />
             </Button>
 
-            {/* App title */}
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-orange-400 to-rose-400 flex items-center justify-center shadow-sm">
-                <Sparkles className="w-4 h-4 text-white" />
-              </div>
-              <div>
-                <h1 className="text-sm font-bold leading-tight">Ollama Chat</h1>
-                <p className="text-xs text-muted-foreground leading-tight">
-                  {state.settings.defaultModel}
-                  <span className="text-muted-foreground/40 mx-1">·</span>
-                  <span className="capitalize">{state.settings.connectionMode === 'cloud' ? 'Cloud' : state.settings.connectionMode === 'remote' ? 'Remote' : 'Local'}</span>
-                </p>
-              </div>
+            {/* App icon */}
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-orange-400 to-rose-400 flex items-center justify-center shadow-sm shrink-0">
+              <Sparkles className="w-3.5 h-3.5 text-white" />
             </div>
+
+            {/* Provider dropdown */}
+            {state.providers.length > 0 && (
+              <Select value={state.settings.provider || 'ollama'} onValueChange={handleProviderChange}>
+                <SelectTrigger className="h-8 text-sm border-border/60 bg-transparent min-w-0 w-auto max-w-[150px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {state.providers.map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            {/* Model dropdown */}
+            {providerModels.length > 0 ? (
+              <Select
+                value={state.settings.defaultModel}
+                onValueChange={v => dispatch({ type: 'SET_SETTINGS', payload: { defaultModel: v } })}
+              >
+                <SelectTrigger className="h-8 text-sm border-border/60 bg-transparent min-w-0 w-auto max-w-[180px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {providerModels.map(m => (
+                    <SelectItem key={m} value={m}>{m}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <span className="text-xs text-muted-foreground px-1 truncate max-w-[140px]">
+                {state.settings.defaultModel}
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-1.5">
-            <ConnectionStatus />
+            {isOllama && <ConnectionStatus />}
             <Button
               variant="ghost"
               size="sm"

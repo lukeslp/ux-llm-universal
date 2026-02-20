@@ -13,6 +13,7 @@ import type {
   ConnectionMode,
 } from './types';
 import { OLLAMA_CLOUD_URL } from './types';
+import { apiUrl } from './api-base';
 
 export class OllamaClient {
   private baseUrl: string;
@@ -65,7 +66,7 @@ export class OllamaClient {
   }
 
   async listModels(): Promise<OllamaModel[]> {
-    const res = await fetch('/api/ollama/tags', {
+    const res = await fetch(apiUrl('/api/ollama/tags'), {
       headers: this.getProxyHeaders(),
       signal: AbortSignal.timeout(15000),
     });
@@ -79,7 +80,7 @@ export class OllamaClient {
 
   async checkConnection(): Promise<boolean> {
     try {
-      const res = await fetch('/api/ollama/health', {
+      const res = await fetch(apiUrl('/api/ollama/health'), {
         headers: this.getProxyHeaders(),
         signal: AbortSignal.timeout(10000),
       });
@@ -95,7 +96,7 @@ export class OllamaClient {
     request: OllamaChatRequest,
     signal?: AbortSignal
   ): AsyncGenerator<OllamaChatChunk> {
-    const res = await fetch('/api/ollama/chat/stream', {
+    const res = await fetch(apiUrl('/api/ollama/chat/stream'), {
       method: 'POST',
       headers: this.getProxyHeaders(),
       body: JSON.stringify(request),
@@ -151,7 +152,7 @@ export class OllamaClient {
     request: OllamaChatRequest,
     signal?: AbortSignal
   ): Promise<OllamaChatChunk> {
-    const res = await fetch('/api/ollama/chat', {
+    const res = await fetch(apiUrl('/api/ollama/chat'), {
       method: 'POST',
       headers: this.getProxyHeaders(),
       body: JSON.stringify(request),

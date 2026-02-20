@@ -3,6 +3,8 @@
 // All requests go through /api/dreamer/* — no keys in browser
 // ============================================================
 
+import { apiUrl } from './api-base';
+
 export interface Provider {
   id: string;
   name: string;
@@ -17,7 +19,7 @@ export interface DreamerMessage {
 
 export async function fetchProviders(): Promise<Provider[]> {
   try {
-    const res = await fetch('/api/providers', {
+    const res = await fetch(apiUrl('/api/providers'), {
       signal: AbortSignal.timeout(10000),
     });
     if (!res.ok) return [];
@@ -35,7 +37,7 @@ export async function* streamDreamerChat(
   options: { temperature?: number; maxTokens?: number; systemPrompt?: string },
   signal?: AbortSignal
 ): AsyncGenerator<{ content?: string; done?: boolean; error?: string }> {
-  const res = await fetch('/api/dreamer/chat/stream', {
+  const res = await fetch(apiUrl('/api/dreamer/chat/stream'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

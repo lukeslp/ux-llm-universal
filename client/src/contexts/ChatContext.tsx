@@ -167,9 +167,12 @@ function loadFromStorage(): { conversations: Conversation[]; settings: AppSettin
   try {
     const convData = localStorage.getItem(STORAGE_KEY);
     const settingsData = localStorage.getItem(SETTINGS_KEY);
+    let storedSettings: Partial<AppSettings> = settingsData ? JSON.parse(settingsData) : {};
+    // Ensure defaultModel is always glm-5 regardless of stored settings
+    storedSettings.defaultModel = 'glm-5';
     return {
       conversations: convData ? JSON.parse(convData) : [],
-      settings: settingsData ? { ...DEFAULT_SETTINGS, ...JSON.parse(settingsData) } : DEFAULT_SETTINGS,
+      settings: { ...DEFAULT_SETTINGS, ...storedSettings },
     };
   } catch {
     return { conversations: [], settings: DEFAULT_SETTINGS };

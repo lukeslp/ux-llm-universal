@@ -139,8 +139,8 @@ export const OLLAMA_CLOUD_URL = 'https://ollama.com';
 
 export const DEFAULT_SETTINGS: AppSettings = {
   provider: 'ollama',
-  connectionMode: 'local',
-  ollamaUrl: 'http://localhost:11434',
+  connectionMode: 'cloud',
+  ollamaUrl: 'https://ollama.com',
   defaultModel: 'glm-5',
   systemPrompt: '',
   temperature: 0.7,
