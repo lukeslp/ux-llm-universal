@@ -5,6 +5,7 @@ import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { registerOllamaProxy } from "../ollama-proxy";
+import { registerDreamerProxy } from "../dreamer-proxy";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
@@ -38,6 +39,8 @@ async function startServer() {
   registerOAuthRoutes(app);
   // Ollama API proxy (bypasses CORS for cloud/remote connections)
   registerOllamaProxy(app);
+  // Multi-provider proxy via Dreamer API (keys from env only)
+  registerDreamerProxy(app);
   // tRPC API
   app.use(
     "/api/trpc",

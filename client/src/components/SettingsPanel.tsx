@@ -1,14 +1,12 @@
 // ============================================================
-// SettingsPanel — User-friendly configuration
-// Design: Warm Companion — plain language, clear controls
-// Supports: Local, Remote, and Ollama Cloud connections
+// SettingsPanel — Provider + model selection, generation config
+// API keys are server-side only (.env) — none in UI
 // ============================================================
 
 import { useState, useEffect } from 'react';
 import {
   X,
   Server,
-  Cloud,
   Monitor,
   Globe,
   Thermometer,
@@ -23,9 +21,6 @@ import {
   Moon,
   Palette,
   ExternalLink,
-  Key,
-  Eye,
-  EyeOff,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,48 +46,43 @@ import { useChat } from '@/contexts/ChatContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { motion } from 'framer-motion';
 import type { ConnectionMode } from '@/lib/types';
-import { OLLAMA_CLOUD_URL } from '@/lib/types';
 
-const CONNECTION_MODES: { value: ConnectionMode; label: string; icon: typeof Cloud; description: string }[] = [
-  {
-    value: 'cloud',
-    label: 'Ollama Cloud',
-    icon: Cloud,
-    description: 'Connect to ollama.com with an API key',
-  },
+const OLLAMA_MODES: { value: ConnectionMode; label: string; icon: typeof Monitor; description: string }[] = [
   {
     value: 'local',
     label: 'Local',
     icon: Monitor,
-    description: 'Connect to Ollama running on this computer',
+    description: 'Ollama running on this machine',
   },
   {
     value: 'remote',
-    label: 'Remote Server',
+    label: 'Remote',
     icon: Globe,
-    description: 'Connect to Ollama on another machine',
+    description: 'Ollama on another server',
   },
 ];
 
 export default function SettingsPanel() {
-  const { state, dispatch, refreshModels, checkConnection } = useChat();
+  const { state, dispatch, refreshModels, refreshProviders, checkConnection } = useChat();
   const { theme, toggleTheme } = useTheme();
-  const { settings, models, isConnected } = state;
+  const { settings, models, providers, isConnected } = state;
   const [testingConnection, setTestingConnection] = useState(false);
-  const [showApiKey, setShowApiKey] = useState(false);
 
   const updateSetting = (key: string, value: unknown) => {
     dispatch({ type: 'SET_SETTINGS', payload: { [key]: value } });
   };
 
-  const handleModeChange = (mode: ConnectionMode) => {
-    const updates: Record<string, unknown> = { connectionMode: mode };
-    if (mode === 'cloud') {
-      updates.ollamaUrl = OLLAMA_CLOUD_URL;
-    } else if (mode === 'local') {
-      updates.ollamaUrl = 'http://localhost:11434';
+  const isOllama = !settings.provider || settings.provider === 'ollama';
+
+  const handleProviderChange = (id: string) => {
+    updateSetting('provider', id);
+    // Reset model to first available model for that provider
+    const p = providers.find(p => p.id === id);
+    if (p && id !== 'ollama' && p.models.length > 0) {
+      updateSetting('defaultModel', p.models[0]);
+    } else if (id === 'ollama') {
+      updateSetting('defaultModel', 'glm-5');
     }
-    dispatch({ type: 'SET_SETTINGS', payload: updates });
   };
 
   const handleTestConnection = async () => {
@@ -102,14 +92,19 @@ export default function SettingsPanel() {
     setTestingConnection(false);
   };
 
-  // Refresh models when connection settings change
+  // Refresh when Ollama URL/mode changes
   useEffect(() => {
+    if (!isOllama) return;
     const timer = setTimeout(() => {
       checkConnection();
       refreshModels();
     }, 1200);
     return () => clearTimeout(timer);
-  }, [settings.ollamaUrl, settings.apiKey, settings.connectionMode]);
+  }, [settings.ollamaUrl, settings.connectionMode, isOllama]);
+
+  // Get model list for current provider
+  const currentProvider = providers.find(p => p.id === settings.provider);
+  const providerModels = isOllama ? models.map(m => m.name) : (currentProvider?.models || []);
 
   return (
     <motion.div
@@ -133,153 +128,157 @@ export default function SettingsPanel() {
 
       <ScrollArea className="flex-1">
         <div className="p-4 space-y-6">
-          {/* Connection Mode */}
+          {/* Provider Selection */}
           <section>
-            <div className="flex items-center gap-2 mb-3">
-              <Server className="w-4 h-4 text-primary" />
-              <h3 className="font-semibold text-sm">Connection</h3>
-              {isConnected ? (
-                <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/40 px-2 py-0.5 rounded-full">
-                  <CheckCircle2 className="w-3 h-3" /> Connected
-                </span>
-              ) : (
-                <span className="flex items-center gap-1 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 px-2 py-0.5 rounded-full">
-                  <XCircle className="w-3 h-3" /> Disconnected
-                </span>
-              )}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Server className="w-4 h-4 text-primary" />
+                <h3 className="font-semibold text-sm">Provider</h3>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={refreshProviders}
+                className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+              >
+                <RefreshCw className="w-3 h-3" />
+              </Button>
             </div>
 
-            {/* Mode selector */}
-            <div className="space-y-2 mb-4">
-              {CONNECTION_MODES.map(mode => (
-                <button
-                  key={mode.value}
-                  onClick={() => handleModeChange(mode.value)}
-                  className={`w-full flex items-start gap-3 p-3 rounded-xl border transition-all text-left ${
-                    settings.connectionMode === mode.value
-                      ? 'border-primary bg-primary/5 dark:bg-primary/10'
-                      : 'border-border hover:border-primary/30 hover:bg-accent/30'
-                  }`}
-                >
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                    settings.connectionMode === mode.value
-                      ? 'bg-primary/10 text-primary'
-                      : 'bg-muted text-muted-foreground'
-                  }`}>
-                    <mode.icon className="w-4 h-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className={`text-sm font-semibold ${
-                      settings.connectionMode === mode.value ? 'text-primary' : 'text-foreground'
+            {providers.length === 0 ? (
+              <p className="text-xs text-muted-foreground">Loading providers…</p>
+            ) : (
+              <div className="space-y-2">
+                {providers.map(p => (
+                  <button
+                    key={p.id}
+                    onClick={() => handleProviderChange(p.id)}
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${
+                      settings.provider === p.id
+                        ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                        : 'border-border hover:border-primary/30 hover:bg-accent/30'
+                    }`}
+                  >
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold ${
+                      settings.provider === p.id
+                        ? 'bg-primary/10 text-primary'
+                        : 'bg-muted text-muted-foreground'
                     }`}>
-                      {mode.label}
-                    </p>
-                    <p className="text-xs text-muted-foreground/70">{mode.description}</p>
-                  </div>
-                  {settings.connectionMode === mode.value && (
-                    <div className="ml-auto shrink-0 mt-1">
-                      <div className="w-2 h-2 rounded-full bg-primary" />
+                      {p.name.slice(0, 2)}
                     </div>
-                  )}
-                </button>
-              ))}
-            </div>
-
-            {/* Cloud API Key */}
-            {(settings.connectionMode === 'cloud' || settings.apiKey) && (
-              <div className="space-y-3 mb-3">
-                <div>
-                  <Label className="text-sm text-muted-foreground mb-1.5 flex items-center gap-1.5">
-                    <Key className="w-3.5 h-3.5" />
-                    API Key
-                  </Label>
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <Input
-                        type={showApiKey ? 'text' : 'password'}
-                        value={settings.apiKey}
-                        onChange={e => updateSetting('apiKey', e.target.value)}
-                        placeholder="Enter your Ollama API key"
-                        className="text-sm pr-10 font-mono"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowApiKey(!showApiKey)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-semibold ${
+                        settings.provider === p.id ? 'text-primary' : 'text-foreground'
+                      }`}>
+                        {p.name}
+                      </p>
+                      {p.id !== 'ollama' && p.models.length > 0 && (
+                        <p className="text-xs text-muted-foreground/60 truncate">
+                          {p.models.length} model{p.models.length !== 1 ? 's' : ''}
+                        </p>
+                      )}
                     </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground/60 mt-1">
-                    {settings.connectionMode === 'cloud' ? (
-                      <>
-                        Get your key at{' '}
-                        <a
-                          href="https://ollama.com/settings/keys"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline"
-                        >
-                          ollama.com/settings/keys
-                        </a>
-                      </>
-                    ) : (
-                      'Optional — only needed if your server requires authentication'
+                    {settings.provider === p.id && (
+                      <div className="w-2 h-2 rounded-full bg-primary shrink-0" />
                     )}
-                  </p>
-                </div>
+                  </button>
+                ))}
               </div>
             )}
-
-            {/* Server URL (for remote mode, or editable for all) */}
-            {settings.connectionMode === 'remote' && (
-              <div className="space-y-3 mb-3">
-                <div>
-                  <Label className="text-sm text-muted-foreground mb-1.5 block">
-                    Server Address
-                  </Label>
-                  <Input
-                    value={settings.ollamaUrl}
-                    onChange={e => updateSetting('ollamaUrl', e.target.value)}
-                    placeholder="https://your-server.com:11434"
-                    className="text-sm"
-                  />
-                  <p className="text-xs text-muted-foreground/60 mt-1">
-                    The URL where your remote Ollama server is running
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Test connection button */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleTestConnection}
-              disabled={testingConnection}
-              className="w-full gap-2"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${testingConnection ? 'animate-spin' : ''}`} />
-              {testingConnection ? 'Testing...' : 'Test Connection'}
-            </Button>
-
-            {/* Connection info summary */}
-            <div className="mt-3 bg-muted/50 rounded-lg px-3 py-2">
-              <p className="text-xs text-muted-foreground">
-                <span className="font-medium">Connecting to:</span>{' '}
-                <span className="font-mono text-foreground/70">
-                  {settings.connectionMode === 'cloud' ? OLLAMA_CLOUD_URL : settings.ollamaUrl}
-                </span>
-              </p>
-              {settings.apiKey && (
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  <span className="font-medium">Auth:</span>{' '}
-                  <span className="text-green-600 dark:text-green-400">API key set</span>
-                </p>
-              )}
-            </div>
           </section>
+
+          {/* Ollama connection sub-section */}
+          {isOllama && (
+            <>
+              <Separator />
+              <section>
+                <div className="flex items-center gap-2 mb-3">
+                  <Monitor className="w-4 h-4 text-primary" />
+                  <h3 className="font-semibold text-sm">Ollama Connection</h3>
+                  {isConnected ? (
+                    <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/40 px-2 py-0.5 rounded-full">
+                      <CheckCircle2 className="w-3 h-3" /> Connected
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 px-2 py-0.5 rounded-full">
+                      <XCircle className="w-3 h-3" /> Disconnected
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-2 mb-3">
+                  {OLLAMA_MODES.map(mode => (
+                    <button
+                      key={mode.value}
+                      onClick={() => {
+                        const updates: Record<string, unknown> = { connectionMode: mode.value };
+                        if (mode.value === 'local') updates.ollamaUrl = 'http://localhost:11434';
+                        dispatch({ type: 'SET_SETTINGS', payload: updates });
+                      }}
+                      className={`w-full flex items-start gap-3 p-3 rounded-xl border transition-all text-left ${
+                        settings.connectionMode === mode.value
+                          ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                          : 'border-border hover:border-primary/30 hover:bg-accent/30'
+                      }`}
+                    >
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                        settings.connectionMode === mode.value
+                          ? 'bg-primary/10 text-primary'
+                          : 'bg-muted text-muted-foreground'
+                      }`}>
+                        <mode.icon className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className={`text-sm font-semibold ${
+                          settings.connectionMode === mode.value ? 'text-primary' : 'text-foreground'
+                        }`}>
+                          {mode.label}
+                        </p>
+                        <p className="text-xs text-muted-foreground/70">{mode.description}</p>
+                      </div>
+                      {settings.connectionMode === mode.value && (
+                        <div className="ml-auto shrink-0 mt-1">
+                          <div className="w-2 h-2 rounded-full bg-primary" />
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+
+                {settings.connectionMode === 'remote' && (
+                  <div className="mb-3">
+                    <Label className="text-sm text-muted-foreground mb-1.5 block">
+                      Server Address
+                    </Label>
+                    <Input
+                      value={settings.ollamaUrl}
+                      onChange={e => updateSetting('ollamaUrl', e.target.value)}
+                      placeholder="http://your-server:11434"
+                      className="text-sm"
+                    />
+                  </div>
+                )}
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleTestConnection}
+                  disabled={testingConnection}
+                  className="w-full gap-2"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${testingConnection ? 'animate-spin' : ''}`} />
+                  {testingConnection ? 'Testing…' : 'Test Connection'}
+                </Button>
+
+                <div className="mt-3 bg-muted/50 rounded-lg px-3 py-2">
+                  <p className="text-xs text-muted-foreground">
+                    <span className="font-medium">URL:</span>{' '}
+                    <span className="font-mono text-foreground/70">{settings.ollamaUrl}</span>
+                  </p>
+                </div>
+              </section>
+            </>
+          )}
 
           <Separator />
 
@@ -291,58 +290,48 @@ export default function SettingsPanel() {
             </div>
 
             <div className="space-y-3">
-              <div>
-                <Label className="text-sm text-muted-foreground mb-1.5 block">
-                  Choose a Model
-                </Label>
-                {models.length > 0 ? (
-                  <Select
-                    value={settings.defaultModel}
-                    onValueChange={v => updateSetting('defaultModel', v)}
-                  >
-                    <SelectTrigger className="text-sm">
-                      <SelectValue placeholder="Select a model" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {models.map(m => (
-                        <SelectItem key={m.name} value={m.name}>
-                          <div className="flex items-center gap-2">
-                            <span>{m.name}</span>
-                            {m.details?.parameter_size && (
-                              <span className="text-xs text-muted-foreground">
-                                ({m.details.parameter_size})
-                              </span>
-                            )}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <Input
-                    value={settings.defaultModel}
-                    onChange={e => updateSetting('defaultModel', e.target.value)}
-                    placeholder="e.g. glm4, llama3.2, gpt-oss:120b"
-                    className="text-sm"
-                  />
-                )}
-                <p className="text-xs text-muted-foreground/60 mt-1">
-                  {models.length > 0
-                    ? 'Select from your available models, or type a name below'
-                    : isConnected
-                      ? 'No models found — type a model name to use'
-                      : 'Connect first, then your models will appear here'
-                  }
-                </p>
-                {models.length > 0 && (
-                  <Input
-                    value={settings.defaultModel}
-                    onChange={e => updateSetting('defaultModel', e.target.value)}
-                    placeholder="Or type a model name..."
-                    className="text-sm mt-2"
-                  />
-                )}
-              </div>
+              {providerModels.length > 0 ? (
+                <Select
+                  value={settings.defaultModel}
+                  onValueChange={v => updateSetting('defaultModel', v)}
+                >
+                  <SelectTrigger className="text-sm">
+                    <SelectValue placeholder="Select a model" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {providerModels.map(name => (
+                      <SelectItem key={name} value={name}>
+                        {name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  value={settings.defaultModel}
+                  onChange={e => updateSetting('defaultModel', e.target.value)}
+                  placeholder={isOllama ? 'e.g. glm-5, llama3.2' : 'Model name'}
+                  className="text-sm"
+                />
+              )}
+              <p className="text-xs text-muted-foreground/60">
+                {isOllama
+                  ? isConnected
+                    ? providerModels.length > 0
+                      ? 'Select from your installed Ollama models'
+                      : 'No models found — type a model name'
+                    : 'Connect to Ollama to see your models'
+                  : `${currentProvider?.name || 'Provider'} models`
+                }
+              </p>
+              {isOllama && providerModels.length > 0 && (
+                <Input
+                  value={settings.defaultModel}
+                  onChange={e => updateSetting('defaultModel', e.target.value)}
+                  placeholder="Or type a model name…"
+                  className="text-sm"
+                />
+              )}
             </div>
           </section>
 
@@ -435,7 +424,7 @@ export default function SettingsPanel() {
                       </TooltipTrigger>
                       <TooltipContent>
                         <p className="text-xs max-w-48">
-                          Maximum number of words/tokens the AI can generate in one response.
+                          Maximum tokens the model can generate in one response.
                         </p>
                       </TooltipContent>
                     </Tooltip>
@@ -474,7 +463,7 @@ export default function SettingsPanel() {
                 <div className="flex-1">
                   <Label className="text-sm font-medium">Stream Responses</Label>
                   <p className="text-xs text-muted-foreground/60">
-                    See words appear as the AI types them
+                    See words appear as they're generated
                   </p>
                 </div>
                 <Switch
@@ -483,31 +472,35 @@ export default function SettingsPanel() {
                 />
               </div>
 
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <Label className="text-sm font-medium">Tool Use</Label>
-                  <p className="text-xs text-muted-foreground/60">
-                    Let the AI use tools like calculators and search
-                  </p>
-                </div>
-                <Switch
-                  checked={settings.enableTools}
-                  onCheckedChange={v => updateSetting('enableTools', v)}
-                />
-              </div>
+              {isOllama && (
+                <>
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <Label className="text-sm font-medium">Tool Use</Label>
+                      <p className="text-xs text-muted-foreground/60">
+                        Let the model use built-in tools like calculators
+                      </p>
+                    </div>
+                    <Switch
+                      checked={settings.enableTools}
+                      onCheckedChange={v => updateSetting('enableTools', v)}
+                    />
+                  </div>
 
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <Label className="text-sm font-medium">Show Thinking</Label>
-                  <p className="text-xs text-muted-foreground/60">
-                    See the AI's reasoning process (if supported)
-                  </p>
-                </div>
-                <Switch
-                  checked={settings.enableThinking}
-                  onCheckedChange={v => updateSetting('enableThinking', v)}
-                />
-              </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <Label className="text-sm font-medium">Show Thinking</Label>
+                      <p className="text-xs text-muted-foreground/60">
+                        See the model's reasoning (if supported)
+                      </p>
+                    </div>
+                    <Switch
+                      checked={settings.enableThinking}
+                      onCheckedChange={v => updateSetting('enableThinking', v)}
+                    />
+                  </div>
+                </>
+              )}
             </div>
           </section>
 
@@ -524,41 +517,21 @@ export default function SettingsPanel() {
               <Textarea
                 value={settings.systemPrompt}
                 onChange={e => updateSetting('systemPrompt', e.target.value)}
-                placeholder="Give the AI special instructions, like 'You are a helpful cooking assistant' or 'Always respond in simple language'..."
+                placeholder="Give the model special instructions, like 'You are a helpful cooking assistant' or 'Always respond in simple language'…"
                 className="text-sm min-h-24 resize-none"
                 rows={4}
               />
               <p className="text-xs text-muted-foreground/60 mt-1">
-                Optional instructions that shape how the AI responds
+                Optional instructions that shape how the model responds
               </p>
             </div>
           </section>
 
           <Separator />
 
-          {/* Help links */}
+          {/* Links */}
           <section>
             <div className="space-y-2">
-              <a
-                href="https://ollama.com/settings/keys"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
-              >
-                <Key className="w-4 h-4" />
-                <span>Manage API Keys</span>
-                <ExternalLink className="w-3 h-3 ml-auto" />
-              </a>
-              <a
-                href="https://ollama.com/search?c=cloud"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
-              >
-                <Cloud className="w-4 h-4" />
-                <span>Browse Cloud Models</span>
-                <ExternalLink className="w-3 h-3 ml-auto" />
-              </a>
               <a
                 href="https://lukesteuber.com"
                 target="_blank"

@@ -15,6 +15,8 @@ import type {
 } from '@/lib/types';
 import { DEFAULT_SETTINGS, BUILT_IN_TOOLS } from '@/lib/types';
 import { ollamaClient, executeBuiltInTool } from '@/lib/ollama-client';
+import { fetchProviders, streamDreamerChat } from '@/lib/dreamer-client';
+import type { Provider } from '@/lib/dreamer-client';
 
 // State
 interface ChatState {
@@ -22,6 +24,7 @@ interface ChatState {
   activeConversationId: string | null;
   settings: AppSettings;
   models: OllamaModel[];
+  providers: Provider[];
   isConnected: boolean;
   isGenerating: boolean;
   error: string | null;
@@ -34,6 +37,7 @@ const initialState: ChatState = {
   activeConversationId: null,
   settings: DEFAULT_SETTINGS,
   models: [],
+  providers: [],
   isConnected: false,
   isGenerating: false,
   error: null,
@@ -52,6 +56,7 @@ type ChatAction =
   | { type: 'UPDATE_MESSAGE'; payload: { conversationId: string; messageId: string; updates: Partial<ChatMessage> } }
   | { type: 'SET_SETTINGS'; payload: Partial<AppSettings> }
   | { type: 'SET_MODELS'; payload: OllamaModel[] }
+  | { type: 'SET_PROVIDERS'; payload: Provider[] }
   | { type: 'SET_CONNECTED'; payload: boolean }
   | { type: 'SET_GENERATING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null }
@@ -117,6 +122,8 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
       return { ...state, settings: { ...state.settings, ...action.payload } };
     case 'SET_MODELS':
       return { ...state, models: action.payload };
+    case 'SET_PROVIDERS':
+      return { ...state, providers: action.payload };
     case 'SET_CONNECTED':
       return { ...state, isConnected: action.payload };
     case 'SET_GENERATING':
@@ -145,6 +152,7 @@ interface ChatContextType {
   deleteConversation: (id: string) => void;
   stopGeneration: () => void;
   refreshModels: () => Promise<void>;
+  refreshProviders: () => Promise<void>;
   checkConnection: () => Promise<void>;
   activeConversation: Conversation | null;
 }
@@ -206,7 +214,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     saveSettings(state.settings);
     ollamaClient.configure({
       baseUrl: state.settings.ollamaUrl,
-      apiKey: state.settings.apiKey,
       connectionMode: state.settings.connectionMode,
     });
   }, [state.settings]);
@@ -230,12 +237,22 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const refreshProviders = useCallback(async () => {
+    try {
+      const providers = await fetchProviders();
+      dispatch({ type: 'SET_PROVIDERS', payload: providers });
+    } catch {
+      dispatch({ type: 'SET_PROVIDERS', payload: [] });
+    }
+  }, []);
+
   useEffect(() => {
     checkConnection();
     refreshModels();
+    refreshProviders();
     const interval = setInterval(checkConnection, 30000);
     return () => clearInterval(interval);
-  }, [checkConnection, refreshModels]);
+  }, [checkConnection, refreshModels, refreshProviders]);
 
   const activeConversation = state.conversations.find(c => c.id === state.activeConversationId) || null;
 
@@ -331,21 +348,62 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       apiMessages.push(apiMsg as { role: string; content: string; images?: string[]; tool_calls?: ToolCall[]; tool_name?: string });
     }
 
-    const request = ollamaClient.buildRequest(apiMessages, state.settings);
-
-    // Add tools if enabled
-    if (state.settings.enableTools) {
-      request.tools = BUILT_IN_TOOLS;
-    }
-
     const abortController = new AbortController();
     abortRef.current = abortController;
+
+    const isOllama = !state.settings.provider || state.settings.provider === 'ollama';
 
     try {
       let fullContent = '';
       let thinkingContent = '';
       let isInThinking = false;
       let collectedToolCalls: ToolCall[] = [];
+
+      // Non-Ollama provider — route through dreamer proxy
+      if (!isOllama) {
+        const dreamerMessages = apiMessages.map(m => ({ role: m.role, content: String(m.content) }));
+        for await (const chunk of streamDreamerChat(
+          state.settings.provider,
+          state.settings.defaultModel,
+          dreamerMessages,
+          {
+            temperature: state.settings.temperature,
+            maxTokens: state.settings.maxTokens,
+          },
+          abortController.signal
+        )) {
+          if (chunk.done) break;
+          if (chunk.content) {
+            fullContent += chunk.content;
+            dispatch({
+              type: 'UPDATE_MESSAGE',
+              payload: {
+                conversationId: convId!,
+                messageId: assistantMsgId,
+                updates: { content: fullContent },
+              },
+            });
+          }
+        }
+
+        dispatch({
+          type: 'UPDATE_MESSAGE',
+          payload: {
+            conversationId: convId!,
+            messageId: assistantMsgId,
+            updates: { content: fullContent, isStreaming: false },
+          },
+        });
+        return;
+      }
+
+      // Ollama path
+      const request = ollamaClient.buildRequest(apiMessages, state.settings);
+
+      // Add tools if enabled
+      if (state.settings.enableTools) {
+        request.tools = BUILT_IN_TOOLS;
+      }
 
       if (state.settings.streamResponses) {
         for await (const chunk of ollamaClient.streamChat(request, abortController.signal)) {
@@ -543,6 +601,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         deleteConversation,
         stopGeneration,
         refreshModels,
+        refreshProviders,
         checkConnection,
         activeConversation,
       }}

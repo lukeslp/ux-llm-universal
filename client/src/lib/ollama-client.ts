@@ -25,9 +25,9 @@ export class OllamaClient {
     this.connectionMode = 'cloud';
   }
 
-  configure(settings: { baseUrl: string; apiKey: string; connectionMode: ConnectionMode }) {
+  configure(settings: { baseUrl: string; apiKey?: string; connectionMode: ConnectionMode }) {
     this.baseUrl = settings.baseUrl.replace(/\/$/, '');
-    this.apiKey = settings.apiKey;
+    if (settings.apiKey !== undefined) this.apiKey = settings.apiKey;
     this.connectionMode = settings.connectionMode;
   }
 

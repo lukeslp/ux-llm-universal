@@ -117,10 +117,11 @@ export interface OllamaChatChunk {
 }
 
 export interface AppSettings {
-  // Connection
+  // Provider — which LLM backend to use
+  provider: string; // 'ollama' | 'xai' | 'anthropic' | 'openai' | etc.
+  // Connection (Ollama-specific)
   connectionMode: ConnectionMode;
   ollamaUrl: string;
-  apiKey: string;
   // Model
   defaultModel: string;
   systemPrompt: string;
@@ -137,9 +138,9 @@ export interface AppSettings {
 export const OLLAMA_CLOUD_URL = 'https://ollama.com';
 
 export const DEFAULT_SETTINGS: AppSettings = {
-  connectionMode: 'cloud',
-  ollamaUrl: OLLAMA_CLOUD_URL,
-  apiKey: '',
+  provider: 'ollama',
+  connectionMode: 'local',
+  ollamaUrl: 'http://localhost:11434',
   defaultModel: 'glm-5',
   systemPrompt: '',
   temperature: 0.7,
