@@ -13,8 +13,8 @@ import type { Express, Request, Response } from 'express';
 const DEFAULT_MODELS: Record<string, string> = {
   anthropic: 'claude-haiku-4-5-20251001',
   xai: 'grok-3-mini',
-  openai: 'gpt-4o-mini',
-  gemini: 'gemini-2.5-flash',
+  openai: 'gpt-5-mini',
+  gemini: 'gemini-3-flash-preview',
   mistral: 'mistral-small-latest',
   cohere: 'command-r',
   perplexity: 'sonar',
