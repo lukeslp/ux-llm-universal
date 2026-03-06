@@ -1,6 +1,7 @@
 // ============================================================
 // Dreamer API Client — Multi-provider LLM via server proxy
 // All requests go through /api/dreamer/* — no keys in browser
+// Supports tool calling for providers that support it
 // ============================================================
 
 import { apiUrl } from './api-base';
@@ -9,12 +10,49 @@ export interface Provider {
   id: string;
   name: string;
   models: string[];
+  defaultModel: string;
   available: boolean;
+  supportsTools: boolean;
 }
 
 export interface DreamerMessage {
   role: string;
   content: string;
+  tool_call_id?: string;
+  tool_use_id?: string;
+  name?: string;
+}
+
+export interface ToolDef {
+  type: 'function';
+  function: {
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+  };
+}
+
+export interface DreamerToolCall {
+  id: string;
+  name: string;
+  arguments: string;
+}
+
+export interface DreamerStreamEvent {
+  content?: string;
+  done?: boolean;
+  error?: string;
+  tool_call?: {
+    id: string;
+    index: number;
+    name: string;
+    arguments: string;
+  };
+  tool_call_delta?: {
+    index: number;
+    arguments: string;
+  };
+  finish_reason?: string;
 }
 
 export async function fetchProviders(): Promise<Provider[]> {
@@ -34,9 +72,14 @@ export async function* streamDreamerChat(
   provider: string,
   model: string | undefined,
   messages: DreamerMessage[],
-  options: { temperature?: number; maxTokens?: number; systemPrompt?: string },
+  options: {
+    temperature?: number;
+    maxTokens?: number;
+    systemPrompt?: string;
+    tools?: ToolDef[];
+  },
   signal?: AbortSignal
-): AsyncGenerator<{ content?: string; done?: boolean; error?: string }> {
+): AsyncGenerator<DreamerStreamEvent> {
   const res = await fetch(apiUrl('/api/dreamer/chat/stream'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -47,6 +90,7 @@ export async function* streamDreamerChat(
       temperature: options.temperature,
       maxTokens: options.maxTokens,
       systemPrompt: options.systemPrompt,
+      tools: options.tools,
     }),
     signal,
   });

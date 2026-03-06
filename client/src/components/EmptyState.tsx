@@ -7,7 +7,7 @@ import { MessageCircle, Calculator, Globe, Lightbulb } from 'lucide-react';
 import { useChat } from '@/contexts/ChatContext';
 import { motion } from 'framer-motion';
 
-const EMPTY_STATE_IMG = 'https://private-us-east-1.manuscdn.com/sessionFile/ZczeSqT83YLrkFvT86EGKx/sandbox/zSRkqiRASQwD6PeiLPQbhP-img-3_1771472973000_na1fn_ZW1wdHktc3RhdGU.png?x-oss-process=image/resize,w_1920,h_1920/format,webp/quality,q_80&Expires=1798761600&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9wcml2YXRlLXVzLWVhc3QtMS5tYW51c2Nkbi5jb20vc2Vzc2lvbkZpbGUvWmN6ZVNxVDgzWUxya0Z2VDg2RUdLeC9zYW5kYm94L3pTUmtxaVJBU1F3RDZQZWlMUFFiaFAtaW1nLTNfMTc3MTQ3Mjk3MzAwMF9uYTFmbl9aVzF3ZEhrdGMzUmhkR1UucG5nP3gtb3NzLXByb2Nlc3M9aW1hZ2UvcmVzaXplLHdfMTkyMCxoXzE5MjAvZm9ybWF0LHdlYnAvcXVhbGl0eSxxXzgwIiwiQ29uZGl0aW9uIjp7IkRhdGVMZXNzVGhhbiI6eyJBV1M6RXBvY2hUaW1lIjoxNzk4NzYxNjAwfX19XX0_&Key-Pair-Id=K2HSFNDJXOU9YS&Signature=Z0KuBSDTTm-tXGg6ilcrOy~pmeSbOF85rZvXptd2RPmZiBY6lskchIB7EPRy9qW~1b6ncpQtBN8UxtgvnLu0JW1snMRhUAkp29DLeuL3YlShJx4Xeq1utxOKgOPQnsNrlBBpl5LFZ7V~UbW8VJDqaYqQ2h7oiVOk2YDJQUh4cpd~qkFKEE7l-l5899pngWnuWLuPXxpINkJWtutEVM7QNT~STIZXreTCjjjqdlLDPe5GF9gKnHbGiEqm3Jf~F21YTOdJigDEHCNEbBtpl1gUHmtadahJvKy9cNrNN9MBOucm7sRrDvEgyTD4YXC-8ywtxPwSsl7Qze6T2hWGHzAanQ__';
+const EMPTY_STATE_IMG = '/images/empty-state.png';
 
 const suggestions = [
   {
@@ -70,7 +70,7 @@ export default function EmptyState() {
           Hi there! How can I help?
         </h1>
         <p className="text-muted-foreground text-base mb-8">
-          I'm your AI assistant powered by{' '}
+          Powered by{' '}
           <span className="font-semibold text-primary">{state.settings.defaultModel}</span>.
           Ask me anything or try one of these ideas:
         </p>

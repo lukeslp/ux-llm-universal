@@ -16,7 +16,7 @@ import type {
 import { DEFAULT_SETTINGS } from '@/lib/types';
 import { ollamaClient } from '@/lib/ollama-client';
 import { fetchProviders, streamDreamerChat } from '@/lib/dreamer-client';
-import type { Provider } from '@/lib/dreamer-client';
+import type { Provider, DreamerStreamEvent, ToolDef } from '@/lib/dreamer-client';
 import {
   getToolSchemas,
   executeTool,
@@ -395,41 +395,199 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       let isInThinking = false;
       let collectedToolCalls: ToolCall[] = [];
 
-      // Non-Ollama provider — route through dreamer proxy
+      // Non-Ollama provider — route through dreamer proxy (with tool calling)
       if (!isOllama) {
+        // Convert tool schemas to OpenAI format for dreamer providers
+        const dreamerTools: ToolDef[] | undefined =
+          state.settings.enableTools && currentTools.length > 0
+            ? currentTools.map(t => ({
+                type: 'function' as const,
+                function: {
+                  name: t.function.name,
+                  description: t.function.description,
+                  parameters: t.function.parameters as Record<string, unknown>,
+                },
+              }))
+            : undefined;
+
+        // Check if this provider supports tools
+        const providerInfo = state.providers.find(p => p.id === state.settings.provider);
+        const providerSupportsTools = providerInfo?.supportsTools ?? false;
+        const toolsToSend = providerSupportsTools ? dreamerTools : undefined;
+
+        // Helper: stream a dreamer chat round and handle tool calls
+        const streamDreamerRound = async (
+          msgs: Array<{ role: string; content: string; tool_call_id?: string; tool_use_id?: string; name?: string }>,
+          tools: ToolDef[] | undefined,
+          msgId: string,
+        ): Promise<{ content: string; toolCalls: Array<{ id: string; name: string; arguments: string }> }> => {
+          let roundContent = '';
+          const pendingToolCalls: Map<number, { id: string; name: string; arguments: string }> = new Map();
+          let gotToolCallFinish = false;
+
+          for await (const chunk of streamDreamerChat(
+            state.settings.provider,
+            state.settings.defaultModel,
+            msgs,
+            {
+              temperature: state.settings.temperature,
+              maxTokens: state.settings.maxTokens,
+              systemPrompt: sysPrompt || undefined,
+              tools,
+            },
+            abortController.signal
+          )) {
+            if (chunk.done) break;
+
+            // Text content
+            if (chunk.content) {
+              roundContent += chunk.content;
+              dispatch({
+                type: 'UPDATE_MESSAGE',
+                payload: {
+                  conversationId: convId!,
+                  messageId: msgId,
+                  updates: { content: roundContent },
+                },
+              });
+            }
+
+            // Tool call start
+            if (chunk.tool_call) {
+              const tc = chunk.tool_call;
+              pendingToolCalls.set(tc.index, {
+                id: tc.id,
+                name: tc.name,
+                arguments: tc.arguments || '',
+              });
+            }
+
+            // Tool call argument continuation
+            if (chunk.tool_call_delta) {
+              const existing = pendingToolCalls.get(chunk.tool_call_delta.index);
+              if (existing) {
+                existing.arguments += chunk.tool_call_delta.arguments;
+              }
+            }
+
+            // Finish reason: tool_calls
+            if (chunk.finish_reason === 'tool_calls') {
+              gotToolCallFinish = true;
+            }
+          }
+
+          const toolCalls = Array.from(pendingToolCalls.values());
+          return { content: roundContent, toolCalls };
+        };
+
+        // First round
         const dreamerMessages = apiMessages.map(m => ({ role: m.role, content: String(m.content) }));
-        for await (const chunk of streamDreamerChat(
-          state.settings.provider,
-          state.settings.defaultModel,
-          dreamerMessages,
-          {
-            temperature: state.settings.temperature,
-            maxTokens: state.settings.maxTokens,
-          },
-          abortController.signal
-        )) {
-          if (chunk.done) break;
-          if (chunk.content) {
-            fullContent += chunk.content;
+        const firstRound = await streamDreamerRound(dreamerMessages, toolsToSend, assistantMsgId);
+        fullContent = firstRound.content;
+
+        // Handle tool calls if any
+        if (firstRound.toolCalls.length > 0) {
+          // Update assistant message with tool calls
+          const convertedToolCalls: ToolCall[] = firstRound.toolCalls.map(tc => {
+            let parsedArgs: Record<string, unknown> = {};
+            try { parsedArgs = JSON.parse(tc.arguments); } catch { parsedArgs = {}; }
+            return { function: { name: tc.name, arguments: parsedArgs } };
+          });
+
+          dispatch({
+            type: 'UPDATE_MESSAGE',
+            payload: {
+              conversationId: convId!,
+              messageId: assistantMsgId,
+              updates: {
+                content: fullContent,
+                toolCalls: convertedToolCalls,
+                isStreaming: false,
+              },
+            },
+          });
+
+          // Execute each tool call
+          const toolResults: Array<{ id: string; name: string; result: string }> = [];
+          for (const tc of firstRound.toolCalls) {
+            // Show pending tool message
+            const toolMsg: ChatMessage = {
+              id: uuidv4(),
+              role: 'tool',
+              content: '',
+              toolName: tc.name,
+              timestamp: Date.now(),
+              toolResults: [{ toolName: tc.name, result: '', status: 'running' }],
+            };
+            dispatch({ type: 'ADD_MESSAGE', payload: { conversationId: convId!, message: toolMsg } });
+
+            // Execute
+            let parsedArgs: Record<string, unknown> = {};
+            try { parsedArgs = JSON.parse(tc.arguments); } catch { parsedArgs = {}; }
+            const result = await executeTool(tc.name, parsedArgs);
+            toolResults.push({ id: tc.id, name: tc.name, result });
+
+            // Update tool message with result
             dispatch({
               type: 'UPDATE_MESSAGE',
               payload: {
                 conversationId: convId!,
-                messageId: assistantMsgId,
-                updates: { content: fullContent },
+                messageId: toolMsg.id,
+                updates: {
+                  content: result,
+                  toolResults: [{ toolName: tc.name, result, status: 'success' }],
+                },
               },
             });
           }
-        }
 
-        dispatch({
-          type: 'UPDATE_MESSAGE',
-          payload: {
-            conversationId: convId!,
-            messageId: assistantMsgId,
-            updates: { content: fullContent, isStreaming: false },
-          },
-        });
+          // Build follow-up messages with tool results
+          const followUpMsgs = [
+            ...dreamerMessages,
+            { role: 'assistant', content: fullContent },
+            ...toolResults.map(tr => ({
+              role: 'tool' as const,
+              content: tr.result,
+              tool_call_id: tr.id,
+              tool_use_id: tr.id,
+              name: tr.name,
+            })),
+          ];
+
+          // Create follow-up assistant message
+          const followUpMsgId = uuidv4();
+          const followUpMsg: ChatMessage = {
+            id: followUpMsgId,
+            role: 'assistant',
+            content: '',
+            timestamp: Date.now(),
+            isStreaming: true,
+            model: state.settings.defaultModel,
+          };
+          dispatch({ type: 'ADD_MESSAGE', payload: { conversationId: convId!, message: followUpMsg } });
+
+          // Stream follow-up (no tools this time to avoid infinite loops)
+          const secondRound = await streamDreamerRound(followUpMsgs, undefined, followUpMsgId);
+
+          dispatch({
+            type: 'UPDATE_MESSAGE',
+            payload: {
+              conversationId: convId!,
+              messageId: followUpMsgId,
+              updates: { content: secondRound.content, isStreaming: false },
+            },
+          });
+        } else {
+          // No tool calls — finalize
+          dispatch({
+            type: 'UPDATE_MESSAGE',
+            payload: {
+              conversationId: convId!,
+              messageId: assistantMsgId,
+              updates: { content: fullContent, isStreaming: false },
+            },
+          });
+        }
         return;
       }
 
