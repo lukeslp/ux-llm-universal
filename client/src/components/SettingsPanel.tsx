@@ -115,7 +115,7 @@ export default function SettingsPanel() {
   const providerModels = isOllama ? models.map(m => m.name) : (currentProvider?.models || []);
 
   // Default open items
-  const defaultOpen = ['provider', 'connection', 'model'];
+  const defaultOpen = ['appearance', 'provider', 'connection', 'model'];
 
   return (
     <motion.div
@@ -379,7 +379,80 @@ export default function SettingsPanel() {
               </AccordionContent>
             </AccordionItem>
 
-            {/* Appearance + Generation + Features — hidden for Manus */}
+            {/* Appearance — always visible, open by default */}
+            <AccordionItem value="appearance">
+              <AccordionTrigger className="border-l-2 border-l-primary pl-3 no-underline hover:no-underline">
+                <div className="flex items-center gap-2">
+                  <Palette className="w-4 h-4 text-primary" />
+                  <span className="font-semibold text-sm">Appearance</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="pt-2 pb-2">
+                  <div className="grid grid-cols-3 gap-2 mb-4">
+                    {(Object.values(THEMES) as typeof THEMES[ThemeName][]).map(t => (
+                      <button
+                        key={t.id}
+                        onClick={() => setThemeName(t.id)}
+                        className={`flex flex-col items-center gap-1.5 p-3 rounded-lg border transition-all ${
+                          themeName === t.id
+                            ? 'border-primary bg-primary/10 ring-1 ring-primary/30'
+                            : 'border-border hover:border-primary/30 hover:bg-accent/30'
+                        }`}
+                      >
+                        {/* Color swatch bar */}
+                        <div className="flex w-full h-3 rounded-sm overflow-hidden">
+                          {t.swatchColors.map((color, i) => (
+                            <div key={i} className="flex-1" style={{ backgroundColor: color }} />
+                          ))}
+                        </div>
+                        <span className={`text-xs font-semibold ${
+                          themeName === t.id ? 'text-primary' : 'text-foreground'
+                        }`}>
+                          {t.name}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground/60">{t.label}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Dark mode toggle — only for Zurich */}
+                  {!THEMES[themeName]?.alwaysDark && (
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <Label className="text-sm font-medium">Dark Mode</Label>
+                        <p className="text-xs text-muted-foreground/60">
+                          Easier on the eyes in low light
+                        </p>
+                      </div>
+                      <button
+                        onClick={toggleTheme}
+                        className="relative w-14 h-8 rounded-full bg-muted border border-border transition-colors hover:bg-accent"
+                      >
+                        <div
+                          className={`absolute top-1 w-6 h-6 rounded-full bg-card shadow-sm border border-border flex items-center justify-center transition-all duration-300 ${
+                            theme === 'dark' ? 'left-7' : 'left-1'
+                          }`}
+                        >
+                          {theme === 'dark' ? (
+                            <Moon className="w-3.5 h-3.5 text-blue-400" />
+                          ) : (
+                            <Sun className="w-3.5 h-3.5 text-amber-500" />
+                          )}
+                        </div>
+                      </button>
+                    </div>
+                  )}
+                  {THEMES[themeName]?.alwaysDark && (
+                    <p className="text-xs text-muted-foreground/50 italic">
+                      {THEMES[themeName].name} is an always-dark theme
+                    </p>
+                  )}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* Generation + Features — hidden for Manus */}
             {!isManus && (
               <AccordionItem value="generation">
                 <AccordionTrigger className="border-l-2 border-l-primary pl-3 no-underline hover:no-underline">
@@ -390,73 +463,6 @@ export default function SettingsPanel() {
                 </AccordionTrigger>
                 <AccordionContent>
                   <div className="pt-2 pb-2 space-y-6">
-                    {/* Appearance — Theme Picker */}
-                    <div>
-                      <div className="flex items-center gap-2 mb-3">
-                        <Palette className="w-4 h-4 text-primary" />
-                        <h3 className="font-semibold text-sm">Theme</h3>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2 mb-4">
-                        {(Object.values(THEMES) as typeof THEMES[ThemeName][]).map(t => (
-                          <button
-                            key={t.id}
-                            onClick={() => setThemeName(t.id)}
-                            className={`flex flex-col items-center gap-1.5 p-3 rounded-lg border transition-all ${
-                              themeName === t.id
-                                ? 'border-primary bg-primary/10 ring-1 ring-primary/30'
-                                : 'border-border hover:border-primary/30 hover:bg-accent/30'
-                            }`}
-                          >
-                            {/* Color swatch bar */}
-                            <div className="flex w-full h-3 rounded-sm overflow-hidden">
-                              {t.swatchColors.map((color, i) => (
-                                <div key={i} className="flex-1" style={{ backgroundColor: color }} />
-                              ))}
-                            </div>
-                            <span className={`text-xs font-semibold ${
-                              themeName === t.id ? 'text-primary' : 'text-foreground'
-                            }`}>
-                              {t.name}
-                            </span>
-                            <span className="text-[10px] text-muted-foreground/60">{t.label}</span>
-                          </button>
-                        ))}
-                      </div>
-
-                      {/* Dark mode toggle — only for Zurich */}
-                      {!THEMES[themeName]?.alwaysDark && (
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <Label className="text-sm font-medium">Dark Mode</Label>
-                            <p className="text-xs text-muted-foreground/60">
-                              Easier on the eyes in low light
-                            </p>
-                          </div>
-                          <button
-                            onClick={toggleTheme}
-                            className="relative w-14 h-8 rounded-full bg-muted border border-border transition-colors hover:bg-accent"
-                          >
-                            <div
-                              className={`absolute top-1 w-6 h-6 rounded-full bg-card shadow-sm border border-border flex items-center justify-center transition-all duration-300 ${
-                                theme === 'dark' ? 'left-7' : 'left-1'
-                              }`}
-                            >
-                              {theme === 'dark' ? (
-                                <Moon className="w-3.5 h-3.5 text-blue-400" />
-                              ) : (
-                                <Sun className="w-3.5 h-3.5 text-amber-500" />
-                              )}
-                            </div>
-                          </button>
-                        </div>
-                      )}
-                      {THEMES[themeName]?.alwaysDark && (
-                        <p className="text-xs text-muted-foreground/50 italic">
-                          {THEMES[themeName].name} is an always-dark theme
-                        </p>
-                      )}
-                    </div>
-
                     {/* Generation sliders */}
                     <div>
                       <div className="flex items-center gap-2 mb-3">
