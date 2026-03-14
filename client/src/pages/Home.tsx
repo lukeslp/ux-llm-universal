@@ -52,6 +52,8 @@ export default function Home() {
   const { themeName } = useTheme();
 
   const currentMode = state.settings.mode || 'chat';
+  // Modes with their own provider/model selectors — hide header dropdowns
+  const modeHasOwnSelectors = ['generate', 'research'].includes(currentMode);
   const isManus = state.settings.provider === 'manus';
   const isOllama = !state.settings.provider || state.settings.provider === 'ollama';
   const currentProvider = state.providers.find(p => p.id === state.settings.provider);
@@ -277,39 +279,42 @@ export default function Home() {
               }`} />
             </div>
 
-            {/* Provider dropdown */}
-            {state.providers.length > 0 && (
-              <Select value={state.settings.provider || 'ollama'} onValueChange={handleProviderChange}>
-                <SelectTrigger className="h-8 text-sm border-border/60 bg-transparent min-w-0 w-auto max-w-[150px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {state.providers.map(p => (
-                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
+            {/* Provider + Model dropdowns — hidden when mode has its own selectors */}
+            {!modeHasOwnSelectors && (
+              <>
+                {state.providers.length > 0 && (
+                  <Select value={state.settings.provider || 'ollama'} onValueChange={handleProviderChange}>
+                    <SelectTrigger className="h-8 text-sm border-border/60 bg-transparent min-w-0 w-auto max-w-[150px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {state.providers.map(p => (
+                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
 
-            {/* Model dropdown */}
-            {providerModels.length > 0 ? (
-              <Select
-                value={state.settings.defaultModel}
-                onValueChange={v => dispatch({ type: 'SET_SETTINGS', payload: { defaultModel: v } })}
-              >
-                <SelectTrigger className="h-8 text-sm border-border/60 bg-transparent min-w-0 w-auto max-w-[180px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {providerModels.map(m => (
-                    <SelectItem key={m} value={m}>{m}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <span className="text-xs text-muted-foreground px-1 truncate max-w-[140px]">
-                {state.settings.defaultModel}
-              </span>
+                {providerModels.length > 0 ? (
+                  <Select
+                    value={state.settings.defaultModel}
+                    onValueChange={v => dispatch({ type: 'SET_SETTINGS', payload: { defaultModel: v } })}
+                  >
+                    <SelectTrigger className="h-8 text-sm border-border/60 bg-transparent min-w-0 w-auto max-w-[180px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {providerModels.map(m => (
+                        <SelectItem key={m} value={m}>{m}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <span className="text-xs text-muted-foreground px-1 truncate max-w-[140px]">
+                    {state.settings.defaultModel}
+                  </span>
+                )}
+              </>
             )}
           </div>
 
@@ -339,7 +344,7 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-1.5">
-            {isOllama && <ConnectionStatus />}
+            {isOllama && !modeHasOwnSelectors && <ConnectionStatus />}
 
             {/* Mobile mode selector */}
             <div className="md:hidden">

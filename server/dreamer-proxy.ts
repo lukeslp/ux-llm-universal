@@ -898,20 +898,40 @@ export function registerDreamerProxy(app: Express) {
     }
   });
 
+  // ============================================================
+  // Modality Proxies — route through dr.eamer.dev API Gateway
+  // Gateway handles provider auth, rate limits, multi-provider routing
+  // ============================================================
+
+  const gatewayUrl = dreamerUrl.replace(/\/+$/, '');
+  const gatewayKey = dreamerKey;
+
+  // Helper: proxy a JSON POST to the gateway
+  async function gatewayPost(path: string, body: Record<string, unknown>, timeoutMs = 120000) {
+    const apiRes = await fetch(`${gatewayUrl}${path}`, {
+      method: 'POST',
+      headers: {
+        'X-API-Key': gatewayKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (!apiRes.ok) {
+      const errData = await apiRes.json().catch(() => ({})) as { error?: string; message?: string };
+      throw new Error(errData.error || errData.message || `Gateway error: ${apiRes.status}`);
+    }
+    return apiRes.json();
+  }
+
   // ---- Image Generation ----
+  // Gateway: POST /v1/llm/images/generate { provider, prompt, model, size }
 
   app.post('/api/image/generate', async (req: Request, res: Response) => {
-    const { prompt, provider, model, n = 1, size = '1024x1024' } = req.body;
+    const { prompt, provider, model, size = '1024x1024' } = req.body;
 
     if (!prompt || !provider || !model) {
       res.status(400).json({ error: 'prompt, provider, and model are required' });
-      return;
-    }
-
-    const keys = getProviderKeys();
-    const key = keys[provider];
-    if (!key) {
-      res.status(400).json({ error: `No API key configured for provider: ${provider}` });
       return;
     }
 
@@ -922,89 +942,132 @@ export function registerDreamerProxy(app: Express) {
     }
 
     try {
-      if (provider === 'openai') {
-        // OpenAI DALL-E / gpt-image API
-        const endpoint = model.startsWith('gpt-image')
-          ? 'https://api.openai.com/v1/images/generations'
-          : 'https://api.openai.com/v1/images/generations';
-        const apiRes = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${key}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ model, prompt, n, size }),
-          signal: AbortSignal.timeout(120000),
-        });
-        if (!apiRes.ok) {
-          const errData = await apiRes.json().catch(() => ({})) as { error?: { message?: string } };
-          throw new Error(errData.error?.message || `OpenAI image API error: ${apiRes.status}`);
-        }
-        const data = await apiRes.json() as { data: Array<{ url?: string; b64_json?: string }> };
-        const images = data.data.map(d => d.url || `data:image/png;base64,${d.b64_json}`).filter(Boolean);
-        res.json({ images });
+      const data = await gatewayPost('/v1/llm/images/generate', {
+        provider, prompt, model, size,
+      }) as { image_data?: string; url?: string; images?: string[] };
 
-      } else if (provider === 'xai') {
-        // xAI Grok image generation
-        const apiRes = await fetch('https://api.x.ai/v1/images/generations', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${key}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ model, prompt, n }),
-          signal: AbortSignal.timeout(120000),
-        });
-        if (!apiRes.ok) {
-          const errData = await apiRes.json().catch(() => ({})) as { error?: { message?: string } };
-          throw new Error(errData.error?.message || `xAI image API error: ${apiRes.status}`);
-        }
-        const data = await apiRes.json() as { data: Array<{ url?: string; b64_json?: string }> };
-        const images = data.data.map(d => d.url || `data:image/png;base64,${d.b64_json}`).filter(Boolean);
-        res.json({ images });
-
-      } else if (provider === 'huggingface') {
-        // HuggingFace Inference API for image models
-        const apiRes = await fetch(`https://router.huggingface.co/v1/images/generations`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${key}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ model, prompt, num_images: n }),
-          signal: AbortSignal.timeout(120000),
-        });
-        if (!apiRes.ok) {
-          // Try alternate HF endpoint
-          const altRes = await fetch(`https://api-inference.huggingface.co/models/${model}`, {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${key}` },
-            body: JSON.stringify({ inputs: prompt }),
-            signal: AbortSignal.timeout(120000),
-          });
-          if (!altRes.ok) {
-            throw new Error(`HuggingFace image API error: ${altRes.status}`);
-          }
-          // HF inference returns raw image bytes
-          const blob = await altRes.arrayBuffer();
-          const b64 = Buffer.from(blob).toString('base64');
-          res.json({ images: [`data:image/png;base64,${b64}`] });
-          return;
-        }
-        const data = await apiRes.json() as { data?: Array<{ url?: string; b64_json?: string }> };
-        if (data.data) {
-          const images = data.data.map(d => d.url || `data:image/png;base64,${d.b64_json}`).filter(Boolean);
-          res.json({ images });
-        } else {
-          res.json({ images: [] });
-        }
-
-      } else {
-        res.status(400).json({ error: `Image generation not implemented for provider: ${provider}` });
+      // Gateway returns image_data (base64) or url
+      const images: string[] = [];
+      if (data.images) {
+        images.push(...data.images);
+      } else if (data.image_data) {
+        images.push(`data:image/png;base64,${data.image_data}`);
+      } else if (data.url) {
+        images.push(data.url);
       }
+      res.json({ images });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Image generation failed';
       res.status(500).json({ error: msg });
     }
+  });
+
+  // ---- Vision (Image Analysis) ----
+  // Gateway: POST /v1/llm/vision { provider, model, image, prompt, media_type }
+
+  app.post('/api/vision/analyze', async (req: Request, res: Response) => {
+    const { provider, model, image, prompt, media_type = 'image/png' } = req.body;
+
+    if (!provider || !model || !image) {
+      res.status(400).json({ error: 'provider, model, and image are required' });
+      return;
+    }
+
+    try {
+      const data = await gatewayPost('/v1/llm/vision', {
+        provider, model, image, prompt: prompt || 'Describe this image.',
+        media_type,
+      }) as { text?: string };
+
+      res.json({ text: data.text || '' });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Vision analysis failed';
+      res.status(500).json({ error: msg });
+    }
+  });
+
+  // ---- Text-to-Speech ----
+  // Gateway: POST /v1/llm/speech { text, provider, voice, model }
+
+  app.post('/api/tts/generate', async (req: Request, res: Response) => {
+    const { text, provider = 'openai', voice = 'alloy', model = 'tts-1' } = req.body;
+
+    if (!text) {
+      res.status(400).json({ error: 'text is required' });
+      return;
+    }
+
+    try {
+      const data = await gatewayPost('/v1/llm/speech', {
+        text, provider, voice, model,
+      }) as { audio_data?: string };
+
+      if (data.audio_data) {
+        res.json({ audioUrl: `data:audio/mp3;base64,${data.audio_data}` });
+      } else {
+        res.status(500).json({ error: 'No audio generated' });
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'TTS failed';
+      res.status(500).json({ error: msg });
+    }
+  });
+
+  // ---- Speech-to-Text ----
+  // Gateway: POST /v1/voice/transcribe (multipart form: audio file)
+  // For now, expose as a passthrough — client sends base64 audio
+
+  app.post('/api/stt/transcribe', async (req: Request, res: Response) => {
+    const { audio, language } = req.body;
+
+    if (!audio) {
+      res.status(400).json({ error: 'audio (base64) is required' });
+      return;
+    }
+
+    try {
+      // Convert base64 to form data for the gateway
+      const audioBuffer = Buffer.from(audio, 'base64');
+      const formData = new FormData();
+      formData.append('audio', new Blob([audioBuffer], { type: 'audio/webm' }), 'audio.webm');
+      if (language) formData.append('language', language);
+
+      const apiRes = await fetch(`${gatewayUrl}/v1/voice/transcribe`, {
+        method: 'POST',
+        headers: { 'X-API-Key': gatewayKey },
+        body: formData,
+        signal: AbortSignal.timeout(30000),
+      });
+
+      if (!apiRes.ok) {
+        const errData = await apiRes.json().catch(() => ({})) as { error?: string };
+        throw new Error(errData.error || `STT error: ${apiRes.status}`);
+      }
+
+      const data = await apiRes.json() as { text?: string; language?: string };
+      res.json({ text: data.text || '', language: data.language });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Transcription failed';
+      res.status(500).json({ error: msg });
+    }
+  });
+
+  // ---- Available Voices (for TTS UI) ----
+
+  app.get('/api/tts/voices', (_req: Request, res: Response) => {
+    res.json({
+      providers: {
+        openai: {
+          voices: ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'],
+          defaultVoice: 'alloy',
+          models: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts'],
+        },
+        elevenlabs: {
+          voices: ['rachel', 'drew', 'clyde', 'paul', 'domi', 'dave', 'fin', 'bella', 'antoni', 'elli', 'josh', 'arnold', 'adam', 'sam'],
+          defaultVoice: 'rachel',
+          models: [],
+        },
+      },
+    });
   });
 }
