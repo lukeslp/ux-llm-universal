@@ -6,6 +6,8 @@
 
 import { apiUrl } from './api-base';
 
+export type ProviderCapability = 'chat' | 'image_generation' | 'vision' | 'tts' | 'stt' | 'embeddings';
+
 export interface Provider {
   id: string;
   name: string;
@@ -14,6 +16,15 @@ export interface Provider {
   available: boolean;
   supportsTools: boolean;
   taskBased?: boolean;
+  capabilities: ProviderCapability[];
+  imageGenModels?: string[];
+  imageGenDefault?: string;
+  visionModels?: string[];
+  visionDefault?: string;
+  ttsModels?: string[];
+  ttsDefault?: string;
+  sttModels?: string[];
+  sttDefault?: string;
 }
 
 export interface DreamerMessage {

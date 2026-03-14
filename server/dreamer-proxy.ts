@@ -48,6 +48,74 @@ const DISPLAY_NAMES: Record<string, string> = {
   manus: 'Manus',
 };
 
+// --- Provider capabilities ---
+// What each provider can do beyond basic chat
+
+export type ProviderCapability = 'chat' | 'image_generation' | 'vision' | 'tts' | 'stt' | 'embeddings';
+
+const PROVIDER_CAPABILITIES: Record<string, ProviderCapability[]> = {
+  ollama: ['chat', 'vision'],
+  anthropic: ['chat', 'vision'],
+  openai: ['chat', 'vision', 'image_generation', 'tts', 'stt', 'embeddings'],
+  xai: ['chat', 'vision', 'image_generation'],
+  gemini: ['chat', 'vision', 'tts', 'embeddings'],
+  mistral: ['chat', 'vision', 'embeddings'],
+  cohere: ['chat', 'embeddings'],
+  perplexity: ['chat'],
+  huggingface: ['chat', 'image_generation'],
+  manus: ['chat'],
+};
+
+// Image generation models per provider (subset of full model list)
+const IMAGE_GEN_MODELS: Record<string, string[]> = {
+  openai: ['dall-e-3', 'dall-e-2', 'gpt-image-1'],
+  xai: ['grok-2-image'],
+  huggingface: ['black-forest-labs/FLUX.1-dev', 'black-forest-labs/FLUX.1-schnell', 'stabilityai/stable-diffusion-xl-base-1.0'],
+};
+
+const IMAGE_GEN_DEFAULTS: Record<string, string> = {
+  openai: 'dall-e-3',
+  xai: 'grok-2-image',
+  huggingface: 'black-forest-labs/FLUX.1-schnell',
+};
+
+// Vision-capable models per provider (models that accept images)
+const VISION_MODELS: Record<string, string[]> = {
+  openai: ['gpt-5-mini', 'gpt-5.4', 'gpt-4.1', 'gpt-4.1-mini', 'gpt-4o', 'gpt-4o-mini'],
+  anthropic: ['claude-sonnet-4-6', 'claude-opus-4-6', 'claude-haiku-4-5-20251001'],
+  xai: ['grok-4-0709', 'grok-3', 'grok-2-vision-1212'],
+  gemini: ['gemini-3.1-pro-preview', 'gemini-3.1-flash-lite-preview', 'gemini-3-flash-preview', 'gemini-2.5-flash'],
+  mistral: ['pixtral-large-latest', 'pixtral-12b-2409'],
+  ollama: ['llava', 'llava-llama3', 'llava-phi3', 'moondream', 'bakllava'],
+};
+
+const VISION_DEFAULTS: Record<string, string> = {
+  openai: 'gpt-5-mini',
+  anthropic: 'claude-sonnet-4-6',
+  xai: 'grok-4-0709',
+  gemini: 'gemini-3.1-flash-lite-preview',
+  mistral: 'pixtral-large-latest',
+};
+
+// TTS models per provider
+const TTS_MODELS: Record<string, string[]> = {
+  openai: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts'],
+  gemini: ['gemini-3.1-flash-lite-preview'],
+};
+
+const TTS_DEFAULTS: Record<string, string> = {
+  openai: 'tts-1',
+};
+
+// STT models per provider
+const STT_MODELS: Record<string, string[]> = {
+  openai: ['whisper-1', 'gpt-4o-transcribe', 'gpt-4o-mini-transcribe'],
+};
+
+const STT_DEFAULTS: Record<string, string> = {
+  openai: 'whisper-1',
+};
+
 // --- Provider API endpoints for direct tool-calling ---
 
 const PROVIDER_ENDPOINTS: Record<string, string> = {
@@ -568,8 +636,27 @@ export function registerDreamerProxy(app: Express) {
       available: boolean;
       supportsTools: boolean;
       taskBased?: boolean;
+      capabilities: ProviderCapability[];
+      imageGenModels?: string[];
+      imageGenDefault?: string;
+      visionModels?: string[];
+      visionDefault?: string;
+      ttsModels?: string[];
+      ttsDefault?: string;
+      sttModels?: string[];
+      sttDefault?: string;
     }> = [
-      { id: 'ollama', name: 'Ollama', models: [], defaultModel: 'glm-5', available: true, supportsTools: true },
+      {
+        id: 'ollama',
+        name: 'Ollama',
+        models: [],
+        defaultModel: 'glm-5',
+        available: true,
+        supportsTools: true,
+        capabilities: PROVIDER_CAPABILITIES.ollama || ['chat'],
+        visionModels: VISION_MODELS.ollama,
+        visionDefault: VISION_DEFAULTS.ollama,
+      },
     ];
 
     const keys = getProviderKeys();
@@ -586,7 +673,9 @@ export function registerDreamerProxy(app: Express) {
         const { id, models } = result.value;
         const supportsTools = ['anthropic', 'openai', 'xai', 'mistral', 'gemini', 'huggingface'].includes(id);
         const taskBased = id === 'manus';
-        providers.push({
+        const capabilities = PROVIDER_CAPABILITIES[id] || ['chat'];
+
+        const entry: (typeof providers)[number] = {
           id,
           name: DISPLAY_NAMES[id] || id,
           models,
@@ -594,7 +683,28 @@ export function registerDreamerProxy(app: Express) {
           available: true,
           supportsTools,
           taskBased: taskBased || undefined,
-        });
+          capabilities,
+        };
+
+        // Attach modality-specific model lists only if provider has that capability
+        if (capabilities.includes('image_generation') && IMAGE_GEN_MODELS[id]) {
+          entry.imageGenModels = IMAGE_GEN_MODELS[id];
+          entry.imageGenDefault = IMAGE_GEN_DEFAULTS[id];
+        }
+        if (capabilities.includes('vision') && VISION_MODELS[id]) {
+          entry.visionModels = VISION_MODELS[id];
+          entry.visionDefault = VISION_DEFAULTS[id];
+        }
+        if (capabilities.includes('tts') && TTS_MODELS[id]) {
+          entry.ttsModels = TTS_MODELS[id];
+          entry.ttsDefault = TTS_DEFAULTS[id];
+        }
+        if (capabilities.includes('stt') && STT_MODELS[id]) {
+          entry.sttModels = STT_MODELS[id];
+          entry.sttDefault = STT_DEFAULTS[id];
+        }
+
+        providers.push(entry);
       }
     }
 
@@ -785,6 +895,116 @@ export function registerDreamerProxy(app: Express) {
         const msg = err instanceof Error ? err.message : 'Unknown proxy error';
         res.status(500).json({ error: msg });
       }
+    }
+  });
+
+  // ---- Image Generation ----
+
+  app.post('/api/image/generate', async (req: Request, res: Response) => {
+    const { prompt, provider, model, n = 1, size = '1024x1024' } = req.body;
+
+    if (!prompt || !provider || !model) {
+      res.status(400).json({ error: 'prompt, provider, and model are required' });
+      return;
+    }
+
+    const keys = getProviderKeys();
+    const key = keys[provider];
+    if (!key) {
+      res.status(400).json({ error: `No API key configured for provider: ${provider}` });
+      return;
+    }
+
+    const capabilities = PROVIDER_CAPABILITIES[provider] || [];
+    if (!capabilities.includes('image_generation')) {
+      res.status(400).json({ error: `Provider ${provider} does not support image generation` });
+      return;
+    }
+
+    try {
+      if (provider === 'openai') {
+        // OpenAI DALL-E / gpt-image API
+        const endpoint = model.startsWith('gpt-image')
+          ? 'https://api.openai.com/v1/images/generations'
+          : 'https://api.openai.com/v1/images/generations';
+        const apiRes = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${key}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ model, prompt, n, size }),
+          signal: AbortSignal.timeout(120000),
+        });
+        if (!apiRes.ok) {
+          const errData = await apiRes.json().catch(() => ({})) as { error?: { message?: string } };
+          throw new Error(errData.error?.message || `OpenAI image API error: ${apiRes.status}`);
+        }
+        const data = await apiRes.json() as { data: Array<{ url?: string; b64_json?: string }> };
+        const images = data.data.map(d => d.url || `data:image/png;base64,${d.b64_json}`).filter(Boolean);
+        res.json({ images });
+
+      } else if (provider === 'xai') {
+        // xAI Grok image generation
+        const apiRes = await fetch('https://api.x.ai/v1/images/generations', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${key}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ model, prompt, n }),
+          signal: AbortSignal.timeout(120000),
+        });
+        if (!apiRes.ok) {
+          const errData = await apiRes.json().catch(() => ({})) as { error?: { message?: string } };
+          throw new Error(errData.error?.message || `xAI image API error: ${apiRes.status}`);
+        }
+        const data = await apiRes.json() as { data: Array<{ url?: string; b64_json?: string }> };
+        const images = data.data.map(d => d.url || `data:image/png;base64,${d.b64_json}`).filter(Boolean);
+        res.json({ images });
+
+      } else if (provider === 'huggingface') {
+        // HuggingFace Inference API for image models
+        const apiRes = await fetch(`https://router.huggingface.co/v1/images/generations`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${key}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ model, prompt, num_images: n }),
+          signal: AbortSignal.timeout(120000),
+        });
+        if (!apiRes.ok) {
+          // Try alternate HF endpoint
+          const altRes = await fetch(`https://api-inference.huggingface.co/models/${model}`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${key}` },
+            body: JSON.stringify({ inputs: prompt }),
+            signal: AbortSignal.timeout(120000),
+          });
+          if (!altRes.ok) {
+            throw new Error(`HuggingFace image API error: ${altRes.status}`);
+          }
+          // HF inference returns raw image bytes
+          const blob = await altRes.arrayBuffer();
+          const b64 = Buffer.from(blob).toString('base64');
+          res.json({ images: [`data:image/png;base64,${b64}`] });
+          return;
+        }
+        const data = await apiRes.json() as { data?: Array<{ url?: string; b64_json?: string }> };
+        if (data.data) {
+          const images = data.data.map(d => d.url || `data:image/png;base64,${d.b64_json}`).filter(Boolean);
+          res.json({ images });
+        } else {
+          res.json({ images: [] });
+        }
+
+      } else {
+        res.status(400).json({ error: `Image generation not implemented for provider: ${provider}` });
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Image generation failed';
+      res.status(500).json({ error: msg });
     }
   });
 }

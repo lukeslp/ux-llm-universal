@@ -1,142 +1,282 @@
 // ============================================================
-// AudioPanel — TTS waveform + STT recording
-// Theme-aware. Uses browser Web Speech API as primary.
+// AudioPanel — TTS + STT with browser Speech API and provider fallback
+// Shows provider-capable models for TTS/STT when available
 // ============================================================
 
-import { useState } from 'react';
-import { Mic, MicOff, Volume2, VolumeX, Square } from 'lucide-react';
+import { useState, useRef, useMemo, useCallback } from 'react';
+import { Mic, Square, Volume2, VolumeX, Send, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
+import { useChat } from '@/contexts/ChatContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function AudioPanel() {
   const { themeName } = useTheme();
-  const [isRecording, setIsRecording] = useState(false);
-  const [isSpeaking] = useState(false);
-  const [transcript, setTranscript] = useState('');
+  const { state } = useChat();
 
-  const toggleRecording = () => {
-    setIsRecording(!isRecording);
-    if (!isRecording) {
-      setTranscript('');
-    }
-  };
+  // STT state
+  const [isRecording, setIsRecording] = useState(false);
+  const [transcript, setTranscript] = useState('');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null);
+
+  // TTS state
+  const [ttsText, setTtsText] = useState('');
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const synthRef = useRef(typeof window !== 'undefined' ? window.speechSynthesis : null);
+
+  // Provider filtering
+  const ttsProviders = useMemo(
+    () => state.providers.filter(p => p.capabilities?.includes('tts') && p.ttsModels?.length),
+    [state.providers],
+  );
+  const sttProviders = useMemo(
+    () => state.providers.filter(p => p.capabilities?.includes('stt') && p.sttModels?.length),
+    [state.providers],
+  );
+
+  const hasBrowserSTT = typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
+  const hasBrowserTTS = typeof window !== 'undefined' && 'speechSynthesis' in window;
+
+  // STT — browser Speech API
+  const startRecording = useCallback(() => {
+    if (!hasBrowserSTT) return;
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    recognition.onresult = (event: any) => {
+      let finalTranscript = '';
+      let interimTranscript = '';
+      for (let i = 0; i < event.results.length; i++) {
+        const result = event.results[i];
+        if (result.isFinal) {
+          finalTranscript += result[0].transcript;
+        } else {
+          interimTranscript += result[0].transcript;
+        }
+      }
+      setTranscript(finalTranscript + interimTranscript);
+    };
+
+    recognition.onerror = () => {
+      setIsRecording(false);
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+    };
+
+    recognition.start();
+    recognitionRef.current = recognition;
+    setIsRecording(true);
+    setTranscript('');
+  }, [hasBrowserSTT]);
+
+  const stopRecording = useCallback(() => {
+    recognitionRef.current?.stop();
+    recognitionRef.current = null;
+    setIsRecording(false);
+  }, []);
+
+  // TTS — browser Speech API
+  const speakText = useCallback(() => {
+    if (!hasBrowserTTS || !ttsText.trim()) return;
+    synthRef.current?.cancel();
+    const utterance = new SpeechSynthesisUtterance(ttsText.trim());
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+    synthRef.current?.speak(utterance);
+  }, [hasBrowserTTS, ttsText]);
+
+  const stopSpeaking = useCallback(() => {
+    synthRef.current?.cancel();
+    setIsSpeaking(false);
+  }, []);
 
   const recordingColor = themeName === 'hearthstone' ? 'text-amber-500' :
     themeName === 'zurich' ? 'text-[oklch(0.55_0.22_29)]' : 'text-indigo-400';
 
-  return (
-    <div className="flex-1 flex flex-col items-center justify-center px-4 py-8 gap-6">
-      {/* STT Section */}
-      <div className="text-center max-w-md">
-        <p className="eyebrow mb-4">SPEECH TO TEXT</p>
+  const waveColor = themeName === 'hearthstone' ? 'bg-amber-600/40' :
+    themeName === 'zurich' ? 'bg-foreground/30' : 'bg-indigo-500/40';
 
-        {/* Recording indicator */}
-        <div className="relative w-24 h-24 mx-auto mb-6">
-          <AnimatePresence>
-            {isRecording && (
-              <>
-                <motion.div
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1.5, opacity: 0 }}
-                  transition={{ duration: 1.5, repeat: Infinity }}
-                  className={`absolute inset-0 rounded-full border-2 ${
-                    themeName === 'hearthstone' ? 'border-amber-500/30' :
-                    themeName === 'zurich' ? 'border-[oklch(0.55_0.22_29)]/30 rounded-none' :
-                    'border-indigo-500/30'
-                  }`}
-                />
-                <motion.div
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1.3, opacity: 0 }}
-                  transition={{ duration: 1.5, repeat: Infinity, delay: 0.3 }}
-                  className={`absolute inset-0 rounded-full border-2 ${
-                    themeName === 'hearthstone' ? 'border-amber-500/20' :
-                    themeName === 'zurich' ? 'border-[oklch(0.55_0.22_29)]/20 rounded-none' :
-                    'border-indigo-500/20'
-                  }`}
-                />
-              </>
-            )}
-          </AnimatePresence>
-          <Button
-            onClick={toggleRecording}
-            className={`w-24 h-24 p-0 ${
-              themeName === 'zurich' ? 'rounded-none' : 'rounded-full'
-            } ${
-              isRecording
-                ? 'bg-destructive hover:bg-destructive/90'
-                : 'bg-card border-2 border-border hover:bg-accent'
-            }`}
-            variant={isRecording ? 'destructive' : 'outline'}
-          >
-            {isRecording ? (
-              <Square className="w-8 h-8" />
-            ) : (
-              <Mic className={`w-8 h-8 ${recordingColor}`} />
-            )}
-          </Button>
+  const waveActiveColor = themeName === 'hearthstone' ? 'bg-amber-500' :
+    themeName === 'zurich' ? 'bg-foreground' : 'bg-indigo-500';
+
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center px-4 py-8 gap-8 overflow-y-auto chat-scroll">
+      {/* STT Section */}
+      <div className="text-center max-w-md w-full">
+        <div className="flex items-center justify-center gap-3 mb-4">
+          <p className="eyebrow">SPEECH TO TEXT</p>
+          {hasBrowserSTT && (
+            <span className="text-[10px] bg-green-500/10 text-green-600 dark:text-green-400 px-2 py-0.5 rounded-full font-medium">
+              Browser API
+            </span>
+          )}
+          {sttProviders.length > 0 && (
+            <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">
+              +{sttProviders.map(p => p.name).join(', ')}
+            </span>
+          )}
         </div>
 
-        {isRecording && (
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className={`text-sm font-semibold ${recordingColor}`}
-          >
-            {themeName === 'zurich' ? 'RECORDING' : 'Listening...'}
-          </motion.p>
-        )}
+        {!hasBrowserSTT && sttProviders.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No speech recognition available. Use Chrome/Edge for browser STT, or configure an OpenAI API key for Whisper.
+          </p>
+        ) : (
+          <>
+            {/* Recording button */}
+            <div className="relative w-24 h-24 mx-auto mb-4">
+              <AnimatePresence>
+                {isRecording && (
+                  <>
+                    <motion.div
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1.5, opacity: 0 }}
+                      transition={{ duration: 1.5, repeat: Infinity }}
+                      className={`absolute inset-0 border-2 ${
+                        themeName === 'zurich' ? 'rounded-none border-primary/30' : 'rounded-full border-primary/30'
+                      }`}
+                    />
+                    <motion.div
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1.3, opacity: 0 }}
+                      transition={{ duration: 1.5, repeat: Infinity, delay: 0.3 }}
+                      className={`absolute inset-0 border-2 ${
+                        themeName === 'zurich' ? 'rounded-none border-primary/20' : 'rounded-full border-primary/20'
+                      }`}
+                    />
+                  </>
+                )}
+              </AnimatePresence>
+              <Button
+                onClick={isRecording ? stopRecording : startRecording}
+                className={`w-24 h-24 p-0 ${
+                  themeName === 'zurich' ? 'rounded-none' : 'rounded-full'
+                } ${
+                  isRecording
+                    ? 'bg-destructive hover:bg-destructive/90'
+                    : 'bg-card border-2 border-border hover:bg-accent'
+                }`}
+                variant={isRecording ? 'destructive' : 'outline'}
+              >
+                {isRecording ? (
+                  <Square className="w-8 h-8" />
+                ) : (
+                  <Mic className={`w-8 h-8 ${recordingColor}`} />
+                )}
+              </Button>
+            </div>
 
-        {transcript && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`mt-4 p-4 bg-card border border-border ${
-              themeName === 'zurich' ? 'rounded-none border-2' : 'rounded-xl'
-            }`}
-          >
-            <p className="text-sm font-mono">{transcript}</p>
-          </motion.div>
-        )}
+            {isRecording && (
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className={`text-sm font-semibold ${recordingColor} mb-2`}
+              >
+                {themeName === 'zurich' ? 'RECORDING' : 'Listening...'}
+              </motion.p>
+            )}
 
-        <p className="text-xs text-muted-foreground/50 mt-4">
-          Coming soon: Web Speech API + server fallback
-        </p>
+            {transcript && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`mt-2 p-4 bg-card border border-border text-left ${
+                  themeName === 'zurich' ? 'rounded-none border-2' : 'rounded-xl'
+                }`}
+              >
+                <p className="eyebrow mb-1">TRANSCRIPT</p>
+                <p className="text-sm">{transcript}</p>
+              </motion.div>
+            )}
+          </>
+        )}
       </div>
 
-      {/* TTS Section */}
-      <div className="text-center max-w-md mt-8">
-        <p className="eyebrow mb-4">TEXT TO SPEECH</p>
+      {/* Divider */}
+      <div className={`w-full max-w-md border-t ${
+        themeName === 'zurich' ? 'border-t-[3px] border-border' : 'border-border'
+      }`} />
 
-        {/* TTS waveform placeholder */}
-        <div className={`h-16 flex items-center justify-center gap-0.5 ${
+      {/* TTS Section */}
+      <div className="text-center max-w-md w-full">
+        <div className="flex items-center justify-center gap-3 mb-4">
+          <p className="eyebrow">TEXT TO SPEECH</p>
+          {hasBrowserTTS && (
+            <span className="text-[10px] bg-green-500/10 text-green-600 dark:text-green-400 px-2 py-0.5 rounded-full font-medium">
+              Browser API
+            </span>
+          )}
+          {ttsProviders.length > 0 && (
+            <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">
+              +{ttsProviders.map(p => p.name).join(', ')}
+            </span>
+          )}
+        </div>
+
+        {/* Waveform visualization */}
+        <div className={`h-16 flex items-center justify-center gap-0.5 mb-4 ${
           themeName === 'zurich' ? 'border-2 border-border px-4' : 'px-4'
         }`}>
           {Array.from({ length: 32 }).map((_, i) => (
             <motion.div
               key={i}
-              className={`w-1 rounded-full ${
-                themeName === 'hearthstone' ? 'bg-amber-600/40' :
-                themeName === 'zurich' ? 'bg-foreground/30' :
-                'bg-indigo-500/40'
-              }`}
+              className={`w-1 rounded-full ${isSpeaking ? waveActiveColor : waveColor}`}
               animate={{
                 height: isSpeaking ? [4, 4 + Math.random() * 40, 4] : 4,
               }}
               transition={{
-                duration: 0.4,
+                duration: 0.3 + Math.random() * 0.2,
                 repeat: isSpeaking ? Infinity : 0,
-                delay: i * 0.03,
+                delay: i * 0.02,
               }}
               style={{ height: 4 }}
             />
           ))}
         </div>
 
-        <p className="text-xs text-muted-foreground/50 mt-4">
-          Coming soon: ElevenLabs / browser TTS
-        </p>
+        {/* TTS input */}
+        <div className="flex items-end gap-2">
+          <textarea
+            value={ttsText}
+            onChange={e => setTtsText(e.target.value)}
+            placeholder="Type text to speak..."
+            rows={2}
+            className={`flex-1 resize-none border border-border bg-card px-4 py-3 text-[15px] placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all ${
+              themeName === 'zurich' ? 'rounded-none border-2' : 'rounded-xl'
+            }`}
+          />
+          <Button
+            size="sm"
+            disabled={!ttsText.trim() && !isSpeaking}
+            onClick={isSpeaking ? stopSpeaking : speakText}
+            className={`h-10 w-10 shrink-0 p-0 ${
+              themeName === 'zurich' ? 'rounded-none' : 'rounded-full'
+            } ${isSpeaking ? 'bg-destructive hover:bg-destructive/90' : ''}`}
+            variant={isSpeaking ? 'destructive' : 'default'}
+          >
+            {isSpeaking ? (
+              <VolumeX className="w-4 h-4" />
+            ) : (
+              <Volume2 className="w-4 h-4" />
+            )}
+          </Button>
+        </div>
+
+        {!hasBrowserTTS && ttsProviders.length === 0 && (
+          <p className="text-xs text-muted-foreground/50 mt-2">
+            No TTS available. Use a modern browser or configure an OpenAI API key.
+          </p>
+        )}
       </div>
     </div>
   );

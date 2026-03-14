@@ -6,7 +6,7 @@
 import { useRef, useEffect, useState } from 'react';
 import {
   Menu, Settings, Sparkles, Plus, ChevronDown, PanelLeftClose, PanelLeft,
-  MessageCircle, Image as ImageIcon, ListTodo, Mic, Workflow,
+  MessageCircle, Image as ImageIcon, ListTodo, Mic, Eye,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -35,15 +35,16 @@ import ConnectionStatus from '@/components/ConnectionStatus';
 import ManusTaskView from '@/components/manus/ManusTaskView';
 import ImageGenPanel from '@/components/ImageGenPanel';
 import AudioPanel from '@/components/AudioPanel';
+import AltTextPanel from '@/components/AltTextPanel';
 import AgentOrchestratorView from '@/components/AgentOrchestratorView';
 import type { AppSettings, AppMode } from '@/lib/types';
 
 const MODES: { id: AppMode; label: string; icon: typeof MessageCircle }[] = [
   { id: 'chat', label: 'Chat', icon: MessageCircle },
-  { id: 'generate', label: 'Generate', icon: ImageIcon },
-  { id: 'task', label: 'Tasks', icon: ListTodo },
-  { id: 'research', label: 'Voice', icon: Mic },
-  { id: 'process', label: 'Process', icon: Workflow },
+  { id: 'generate', label: 'Image', icon: ImageIcon },
+  { id: 'research', label: 'Vision', icon: Eye },
+  { id: 'task', label: 'Voice', icon: Mic },
+  { id: 'process', label: 'Agents', icon: ListTodo },
 ];
 
 export default function Home() {
@@ -132,13 +133,9 @@ export default function Home() {
     switch (currentMode) {
       case 'generate':
         return <ImageGenPanel />;
-      case 'task':
-        // Only show ManusTaskView if Manus provider is available
-        if (state.providers.some(p => p.id === 'manus')) {
-          return <ManusTaskView />;
-        }
-        return <AgentOrchestratorView />;
       case 'research':
+        return <AltTextPanel />;
+      case 'task':
         return <AudioPanel />;
       case 'process':
         return <AgentOrchestratorView />;
