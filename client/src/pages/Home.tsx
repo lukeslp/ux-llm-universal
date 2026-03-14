@@ -6,7 +6,7 @@
 import { useRef, useEffect, useState } from 'react';
 import {
   Menu, Settings, Sparkles, Plus, ChevronDown, PanelLeftClose, PanelLeft,
-  MessageCircle, Image as ImageIcon, ListTodo, Search, Workflow,
+  MessageCircle, Image as ImageIcon, ListTodo, Mic, Workflow,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -35,7 +35,6 @@ import ConnectionStatus from '@/components/ConnectionStatus';
 import ManusTaskView from '@/components/manus/ManusTaskView';
 import ImageGenPanel from '@/components/ImageGenPanel';
 import AudioPanel from '@/components/AudioPanel';
-import AltTextPanel from '@/components/AltTextPanel';
 import AgentOrchestratorView from '@/components/AgentOrchestratorView';
 import type { AppSettings, AppMode } from '@/lib/types';
 
@@ -43,7 +42,7 @@ const MODES: { id: AppMode; label: string; icon: typeof MessageCircle }[] = [
   { id: 'chat', label: 'Chat', icon: MessageCircle },
   { id: 'generate', label: 'Generate', icon: ImageIcon },
   { id: 'task', label: 'Tasks', icon: ListTodo },
-  { id: 'research', label: 'Research', icon: Search },
+  { id: 'research', label: 'Voice', icon: Mic },
   { id: 'process', label: 'Process', icon: Workflow },
 ];
 
@@ -127,16 +126,20 @@ export default function Home() {
 
   // Determine which main content to render based on mode
   const renderMainContent = () => {
-    // Manus provider always shows task view
+    // Manus provider always shows task view regardless of mode
     if (isManus) return <ManusTaskView />;
 
     switch (currentMode) {
       case 'generate':
         return <ImageGenPanel />;
       case 'task':
-        return <ManusTaskView />;
+        // Only show ManusTaskView if Manus provider is available
+        if (state.providers.some(p => p.id === 'manus')) {
+          return <ManusTaskView />;
+        }
+        return <AgentOrchestratorView />;
       case 'research':
-        return <AltTextPanel />;
+        return <AudioPanel />;
       case 'process':
         return <AgentOrchestratorView />;
       case 'chat':

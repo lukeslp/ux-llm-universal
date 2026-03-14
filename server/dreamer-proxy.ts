@@ -8,16 +8,16 @@
 
 import type { Express, Request, Response } from 'express';
 
-// --- Default models per provider (best value Feb 2026) ---
+// --- Default models per provider (newest as of Mar 2026) ---
 
 const DEFAULT_MODELS: Record<string, string> = {
-  anthropic: 'claude-haiku-4-5-20251001',
-  xai: 'grok-3-mini',
-  openai: 'gpt-4.1-mini',
-  gemini: 'gemini-3-flash-preview',
-  mistral: 'mistral-small-latest',
-  cohere: 'command-r',
-  perplexity: 'sonar',
+  anthropic: 'claude-sonnet-4-6',
+  xai: 'grok-4-0709',
+  openai: 'gpt-5-mini',
+  gemini: 'gemini-3.1-flash-lite-preview',
+  mistral: 'mistral-large-latest',
+  cohere: 'command-r-plus',
+  perplexity: 'sonar-pro',
   huggingface: 'Qwen/Qwen3.5-9B',
   manus: 'manus-1.6',
 };
@@ -25,13 +25,13 @@ const DEFAULT_MODELS: Record<string, string> = {
 // --- Fallback models (used when live fetch fails) ---
 
 const FALLBACK_MODELS: Record<string, string[]> = {
-  anthropic: ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6', 'claude-opus-4-6'],
-  xai: ['grok-3-mini', 'grok-3', 'grok-4-0709'],
-  openai: ['gpt-4.1-mini', 'gpt-4.1', 'gpt-4o', 'o4-mini', 'o3'],
-  gemini: ['gemini-3-flash-preview', 'gemini-3.1-pro-preview', 'gemini-3.1-flash-lite-preview', 'gemini-2.5-flash'],
-  mistral: ['mistral-small-latest', 'mistral-large-latest', 'codestral-latest'],
-  cohere: ['command-r', 'command-r-plus'],
-  perplexity: ['sonar', 'sonar-pro'],
+  anthropic: ['claude-sonnet-4-6', 'claude-opus-4-6', 'claude-haiku-4-5-20251001'],
+  xai: ['grok-4-0709', 'grok-3', 'grok-3-mini'],
+  openai: ['gpt-5-mini', 'gpt-5.4', 'gpt-4.1', 'o4-mini', 'o3'],
+  gemini: ['gemini-3.1-flash-lite-preview', 'gemini-3.1-pro-preview', 'gemini-3-flash-preview', 'gemini-2.5-flash'],
+  mistral: ['mistral-large-latest', 'mistral-small-latest', 'codestral-latest'],
+  cohere: ['command-r-plus', 'command-r', 'command-a-03-2025'],
+  perplexity: ['sonar-pro', 'sonar'],
   huggingface: ['Qwen/Qwen3.5-9B', 'meta-llama/Llama-3.1-8B-Instruct', 'deepseek-ai/DeepSeek-R1', 'zai-org/GLM-5'],
   manus: ['manus-1.6', 'manus-1.6-lite', 'manus-1.6-max'],
 };
