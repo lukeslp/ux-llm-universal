@@ -122,7 +122,7 @@ export default function SettingsPanel() {
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 20 }}
-      className="h-full flex flex-col bg-card border-l border-border overflow-hidden"
+      className="h-full flex flex-col bg-card/80 backdrop-blur-md border-l border-border/30 overflow-hidden"
     >
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-border">
@@ -143,7 +143,7 @@ export default function SettingsPanel() {
 
             {/* Provider Selection */}
             <AccordionItem value="provider">
-              <AccordionTrigger className="border-l-2 border-l-primary pl-3 no-underline hover:no-underline">
+              <AccordionTrigger className="no-underline hover:no-underline">
                 <div className="flex items-center gap-2">
                   <Server className="w-4 h-4 text-primary" />
                   <span className="font-semibold text-sm">Provider</span>
@@ -169,8 +169,8 @@ export default function SettingsPanel() {
                           onClick={() => handleProviderChange(p.id)}
                           className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${
                             settings.provider === p.id
-                              ? 'border-primary border-l-[3px] border-l-primary bg-primary/5 dark:bg-primary/10'
-                              : 'border-border hover:border-primary/30 hover:bg-accent/30'
+                              ? 'border-primary/40 bg-primary/8 backdrop-blur-sm'
+                              : 'border-border/50 hover:border-primary/20 hover:bg-accent/20'
                           }`}
                         >
                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold ${
@@ -206,7 +206,7 @@ export default function SettingsPanel() {
             {/* Ollama Connection / Manus Banner */}
             {(isOllama || isManus) && (
               <AccordionItem value="connection">
-                <AccordionTrigger className="border-l-2 border-l-primary pl-3 no-underline hover:no-underline">
+                <AccordionTrigger className="no-underline hover:no-underline">
                   <div className="flex items-center gap-2">
                     <Monitor className="w-4 h-4 text-primary" />
                     <span className="font-semibold text-sm">
@@ -325,7 +325,7 @@ export default function SettingsPanel() {
 
             {/* Model Selection */}
             <AccordionItem value="model">
-              <AccordionTrigger className="border-l-2 border-l-primary pl-3 no-underline hover:no-underline">
+              <AccordionTrigger className="no-underline hover:no-underline">
                 <div className="flex items-center gap-2">
                   <Brain className="w-4 h-4 text-primary" />
                   <span className="font-semibold text-sm">Model</span>
@@ -381,7 +381,7 @@ export default function SettingsPanel() {
 
             {/* Appearance — always visible, open by default */}
             <AccordionItem value="appearance">
-              <AccordionTrigger className="border-l-2 border-l-primary pl-3 no-underline hover:no-underline">
+              <AccordionTrigger className="no-underline hover:no-underline">
                 <div className="flex items-center gap-2">
                   <Palette className="w-4 h-4 text-primary" />
                   <span className="font-semibold text-sm">Appearance</span>
@@ -455,7 +455,7 @@ export default function SettingsPanel() {
             {/* Generation + Features — hidden for Manus */}
             {!isManus && (
               <AccordionItem value="generation">
-                <AccordionTrigger className="border-l-2 border-l-primary pl-3 no-underline hover:no-underline">
+                <AccordionTrigger className="no-underline hover:no-underline">
                   <div className="flex items-center gap-2">
                     <Thermometer className="w-4 h-4 text-primary" />
                     <span className="font-semibold text-sm">Generation</span>
@@ -596,7 +596,7 @@ export default function SettingsPanel() {
             {/* System Prompt + Tool Categories — hidden for Manus */}
             {!isManus && (
               <AccordionItem value="advanced">
-                <AccordionTrigger className="border-l-2 border-l-primary pl-3 no-underline hover:no-underline">
+                <AccordionTrigger className="no-underline hover:no-underline">
                   <div className="flex items-center gap-2">
                     <MessageSquare className="w-4 h-4 text-primary" />
                     <span className="font-semibold text-sm">Advanced</span>

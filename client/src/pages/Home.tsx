@@ -217,7 +217,7 @@ export default function Home() {
             animate={{ width: 288, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="hidden lg:block shrink-0 border-r border-border overflow-hidden"
+            className="hidden lg:block shrink-0 border-r border-border/30 overflow-hidden"
           >
             <div className="w-72 h-full">
               <Sidebar onClose={() => setDesktopSidebarOpen(false)} />
@@ -241,7 +241,7 @@ export default function Home() {
       {/* Main Area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Bar */}
-        <header className="flex items-center justify-between px-4 py-3 border-b border-border bg-background/80 backdrop-blur-sm shrink-0 z-10">
+        <header className="flex items-center justify-between px-4 py-3 border-b border-border/30 bg-background/60 backdrop-blur-md shrink-0 z-10">
           <div className="flex items-center gap-2">
             {/* Mobile menu button */}
             <Button

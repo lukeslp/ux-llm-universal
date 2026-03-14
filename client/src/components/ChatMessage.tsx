@@ -530,20 +530,12 @@ export default function ChatMessage({ message, isLast }: Props) {
           </div>
         )}
 
-        {/* Message bubble — theme-aware */}
+        {/* Message bubble — glassmorphic */}
         <div
-          className={`px-4 py-3 ${
+          className={`px-4 py-3 rounded-2xl ${
             isUser
-              ? themeName === 'nebula'
-                ? 'rounded-2xl rounded-br-md bg-indigo-900/40 text-white border border-indigo-500/20 max-w-lg'
-                : themeName === 'slate'
-                ? 'rounded-2xl rounded-br-md bg-teal-900/30 text-teal-50 border border-teal-700/20 max-w-lg'
-                : 'rounded-2xl rounded-br-md bg-amber-900/30 text-amber-50 border border-amber-700/20 max-w-lg'
-              : themeName === 'nebula'
-              ? 'rounded-2xl rounded-bl-md bg-card border border-border border-l-2 border-l-indigo-500/40 shadow-sm w-full max-w-none'
-              : themeName === 'slate'
-              ? 'rounded-2xl rounded-bl-md bg-card border border-border border-l-2 border-l-teal-500/30 shadow-sm w-full max-w-none'
-              : 'rounded-2xl rounded-bl-md bg-card border border-border border-l-2 border-l-amber-600/30 shadow-sm w-full max-w-none'
+              ? 'rounded-br-md bg-primary/15 backdrop-blur-sm border border-primary/10 max-w-lg'
+              : 'rounded-bl-md bg-card/60 backdrop-blur-sm border border-border/50 shadow-sm w-full max-w-none'
           }`}
         >
           {/* User images */}

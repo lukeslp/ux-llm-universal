@@ -134,8 +134,8 @@ export default function Sidebar({ onClose }: Props) {
                         'group flex items-center gap-2 px-3 py-2.5 cursor-pointer transition-colors',
                         'rounded-xl',
                         conv.id === state.activeConversationId
-                          ? 'bg-sidebar-accent text-sidebar-accent-foreground border-l-[3px] border-l-primary'
-                          : 'hover:bg-sidebar-accent/50 border-l-[3px] border-l-transparent'
+                          ? 'bg-sidebar-accent/60 backdrop-blur-sm text-sidebar-accent-foreground'
+                          : 'hover:bg-sidebar-accent/30'
                       )}
                       onClick={() => handleSelectConversation(conv.id)}
                     >

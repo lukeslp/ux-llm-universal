@@ -98,7 +98,7 @@ export default function ChatInput() {
 
   return (
     <div
-      className={`border-t border-border bg-background/80 backdrop-blur-sm px-4 py-3 transition-colors ${
+      className={`border-t border-border/30 bg-background/60 backdrop-blur-md px-4 py-3 transition-colors ${
         dragOver ? 'bg-primary/5 border-primary/30' : ''
       }`}
       onDrop={handleDrop}

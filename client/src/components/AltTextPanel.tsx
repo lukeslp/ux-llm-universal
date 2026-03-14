@@ -353,11 +353,7 @@ export default function VisionPanel() {
                   key={r.timestamp}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className={`p-4 bg-card border border-border ${
-                    themeName === 'nebula' ? 'rounded-xl border-l-2 border-l-indigo-500/40' :
-                    themeName === 'slate' ? 'rounded-xl border-l-2 border-l-teal-500/30' :
-                    'rounded-xl border-l-2 border-l-amber-600/30'
-                  }`}
+                  className="p-4 rounded-xl bg-card/60 backdrop-blur-sm border border-border/40"
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">

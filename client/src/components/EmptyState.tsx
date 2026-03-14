@@ -14,32 +14,28 @@ const suggestions = [
     label: 'Write something',
     prompt: 'Help me write a friendly email to my team about our upcoming project deadline.',
     iconColor: 'text-white',
-    bgColor: 'bg-blue-500',
-    borderColor: 'border-l-blue-500',
+    bgColor: 'bg-blue-500/80',
   },
   {
     icon: Lightbulb,
     label: 'Explain a concept',
     prompt: 'Explain how the internet works in simple terms that a 10-year-old could understand.',
     iconColor: 'text-white',
-    bgColor: 'bg-amber-500',
-    borderColor: 'border-l-amber-500',
+    bgColor: 'bg-amber-500/80',
   },
   {
     icon: Calculator,
     label: 'Solve a problem',
     prompt: 'I need to plan a budget for a small birthday party for 15 people. Can you help?',
     iconColor: 'text-white',
-    bgColor: 'bg-green-500',
-    borderColor: 'border-l-green-500',
+    bgColor: 'bg-green-500/80',
   },
   {
     icon: Globe,
     label: 'Learn something new',
     prompt: 'What are some interesting facts about space that most people don\'t know?',
     iconColor: 'text-white',
-    bgColor: 'bg-purple-500',
-    borderColor: 'border-l-purple-500',
+    bgColor: 'bg-purple-500/80',
   },
 ];
 
@@ -90,7 +86,7 @@ export default function EmptyState() {
               transition={{ duration: 0.3, delay: 0.1 + i * 0.08 }}
               onClick={() => handleSuggestion(s.prompt)}
               disabled={!state.isConnected}
-              className={`flex items-start gap-3 p-3.5 border border-border border-l-2 ${s.borderColor} bg-card hover:bg-accent/50 hover:border-primary/20 transition-all text-left group disabled:opacity-50 disabled:cursor-not-allowed rounded-lg`}
+              className="flex items-start gap-3 p-3.5 border border-border/40 bg-card/50 backdrop-blur-sm hover:bg-accent/30 hover:border-border/60 transition-all text-left group disabled:opacity-50 disabled:cursor-not-allowed rounded-lg"
             >
               <div className={`w-8 h-8 rounded-lg ${s.bgColor} ${s.iconColor} flex items-center justify-center shrink-0`}>
                 <s.icon className="w-4 h-4" />
