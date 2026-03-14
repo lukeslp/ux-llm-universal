@@ -28,8 +28,8 @@ export default function AgentOrchestratorView() {
   const getStatusColor = (status: AgentNode['status']) => {
     switch (status) {
       case 'active':
-        return themeName === 'hearthstone' ? 'border-amber-500 bg-amber-500/10' :
-          themeName === 'zurich' ? 'border-[oklch(0.55_0.22_29)] bg-[oklch(0.55_0.22_29)]/5' :
+        return themeName === 'slate' ? 'border-teal-500 bg-teal-500/10' :
+          themeName === 'lumen' ? 'border-amber-500 bg-amber-500/10' :
           'border-indigo-500 bg-indigo-500/10';
       case 'done':
         return 'border-green-500 bg-green-500/10';
@@ -42,9 +42,9 @@ export default function AgentOrchestratorView() {
 
   const getRoleColor = (role: string) => {
     switch (role) {
-      case 'belter': return themeName === 'zurich' ? 'bg-blue-600' : 'bg-blue-500';
-      case 'drummer': return themeName === 'zurich' ? 'bg-[oklch(0.55_0.22_29)]' : 'bg-rose-500';
-      case 'camina': return themeName === 'zurich' ? 'bg-[oklch(0.13_0_0)] dark:bg-[oklch(0.95_0_0)]' : 'bg-purple-500';
+      case 'belter': return 'bg-blue-500';
+      case 'drummer': return 'bg-rose-500';
+      case 'camina': return 'bg-purple-500';
       default: return 'bg-muted-foreground';
     }
   };
@@ -52,10 +52,10 @@ export default function AgentOrchestratorView() {
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-4 py-8">
       <div className="text-center max-w-2xl">
-        <div className={`w-16 h-16 mx-auto mb-6 flex items-center justify-center ${
-          themeName === 'hearthstone' ? 'rounded-2xl bg-amber-900/20' :
-          themeName === 'zurich' ? 'rounded-none border-2 border-border' :
-          'rounded-2xl bg-indigo-900/20'
+        <div className={`w-16 h-16 mx-auto mb-6 rounded-2xl flex items-center justify-center ${
+          themeName === 'nebula' ? 'bg-indigo-900/20' :
+          themeName === 'slate' ? 'bg-teal-900/20' :
+          'bg-amber-900/20'
         }`}>
           <Network className="w-8 h-8 text-muted-foreground" />
         </div>
@@ -74,9 +74,7 @@ export default function AgentOrchestratorView() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.1 }}
-              className={`p-4 border-2 ${getStatusColor(agent.status)} transition-all ${
-                themeName === 'zurich' ? 'rounded-none' : 'rounded-xl'
-              }`}
+              className={`p-4 border-2 ${getStatusColor(agent.status)} transition-all rounded-xl`}
             >
               <div className="flex items-center gap-2 mb-2">
                 <div className={`w-2 h-2 rounded-full ${getRoleColor(agent.role)}`} />

@@ -100,14 +100,14 @@ export default function AudioPanel() {
     setIsSpeaking(false);
   }, []);
 
-  const recordingColor = themeName === 'hearthstone' ? 'text-amber-500' :
-    themeName === 'zurich' ? 'text-[oklch(0.55_0.22_29)]' : 'text-indigo-400';
+  const recordingColor = themeName === 'nebula' ? 'text-indigo-400' :
+    themeName === 'slate' ? 'text-teal-400' : 'text-amber-500';
 
-  const waveColor = themeName === 'hearthstone' ? 'bg-amber-600/40' :
-    themeName === 'zurich' ? 'bg-foreground/30' : 'bg-indigo-500/40';
+  const waveColor = themeName === 'nebula' ? 'bg-indigo-500/40' :
+    themeName === 'slate' ? 'bg-teal-500/40' : 'bg-amber-600/40';
 
-  const waveActiveColor = themeName === 'hearthstone' ? 'bg-amber-500' :
-    themeName === 'zurich' ? 'bg-foreground' : 'bg-indigo-500';
+  const waveActiveColor = themeName === 'nebula' ? 'bg-indigo-500' :
+    themeName === 'slate' ? 'bg-teal-500' : 'bg-amber-500';
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-4 py-8 gap-8 overflow-y-auto chat-scroll">
@@ -142,26 +142,20 @@ export default function AudioPanel() {
                       initial={{ scale: 0.8, opacity: 0 }}
                       animate={{ scale: 1.5, opacity: 0 }}
                       transition={{ duration: 1.5, repeat: Infinity }}
-                      className={`absolute inset-0 border-2 ${
-                        themeName === 'zurich' ? 'rounded-none border-primary/30' : 'rounded-full border-primary/30'
-                      }`}
+                      className="absolute inset-0 rounded-full border-2 border-primary/30"
                     />
                     <motion.div
                       initial={{ scale: 0.8, opacity: 0 }}
                       animate={{ scale: 1.3, opacity: 0 }}
                       transition={{ duration: 1.5, repeat: Infinity, delay: 0.3 }}
-                      className={`absolute inset-0 border-2 ${
-                        themeName === 'zurich' ? 'rounded-none border-primary/20' : 'rounded-full border-primary/20'
-                      }`}
+                      className="absolute inset-0 rounded-full border-2 border-primary/20"
                     />
                   </>
                 )}
               </AnimatePresence>
               <Button
                 onClick={isRecording ? stopRecording : startRecording}
-                className={`w-24 h-24 p-0 ${
-                  themeName === 'zurich' ? 'rounded-none' : 'rounded-full'
-                } ${
+                className={`w-24 h-24 p-0 rounded-full ${
                   isRecording
                     ? 'bg-destructive hover:bg-destructive/90'
                     : 'bg-card border-2 border-border hover:bg-accent'
@@ -182,7 +176,7 @@ export default function AudioPanel() {
                 animate={{ opacity: 1 }}
                 className={`text-sm font-semibold ${recordingColor} mb-2`}
               >
-                {themeName === 'zurich' ? 'RECORDING' : 'Listening...'}
+                Listening...
               </motion.p>
             )}
 
@@ -190,9 +184,7 @@ export default function AudioPanel() {
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`mt-2 p-4 bg-card border border-border text-left ${
-                  themeName === 'zurich' ? 'rounded-none border-2' : 'rounded-xl'
-                }`}
+                className="mt-2 p-4 bg-card border border-border text-left rounded-xl"
               >
                 <p className="eyebrow mb-1">TRANSCRIPT</p>
                 <p className="text-sm">{transcript}</p>
@@ -203,9 +195,7 @@ export default function AudioPanel() {
       </div>
 
       {/* Divider */}
-      <div className={`w-full max-w-md border-t ${
-        themeName === 'zurich' ? 'border-t-[3px] border-border' : 'border-border'
-      }`} />
+      <div className="w-full max-w-md border-t border-border" />
 
       {/* TTS Section */}
       <div className="text-center max-w-md w-full">
@@ -224,9 +214,7 @@ export default function AudioPanel() {
         </div>
 
         {/* Waveform visualization */}
-        <div className={`h-16 flex items-center justify-center gap-0.5 mb-4 ${
-          themeName === 'zurich' ? 'border-2 border-border px-4' : 'px-4'
-        }`}>
+        <div className="h-16 flex items-center justify-center gap-0.5 mb-4 px-4">
           {Array.from({ length: 32 }).map((_, i) => (
             <motion.div
               key={i}
@@ -251,17 +239,13 @@ export default function AudioPanel() {
             onChange={e => setTtsText(e.target.value)}
             placeholder="Type text to speak..."
             rows={2}
-            className={`flex-1 resize-none border border-border bg-card px-4 py-3 text-[15px] placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all ${
-              themeName === 'zurich' ? 'rounded-none border-2' : 'rounded-xl'
-            }`}
+            className="flex-1 resize-none border border-border bg-card px-4 py-3 text-[15px] placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all rounded-xl"
           />
           <Button
             size="sm"
             disabled={!ttsText.trim() && !isSpeaking}
             onClick={isSpeaking ? stopSpeaking : speakText}
-            className={`h-10 w-10 shrink-0 p-0 ${
-              themeName === 'zurich' ? 'rounded-none' : 'rounded-full'
-            } ${isSpeaking ? 'bg-destructive hover:bg-destructive/90' : ''}`}
+            className={`h-10 w-10 shrink-0 p-0 rounded-full ${isSpeaking ? 'bg-destructive hover:bg-destructive/90' : ''}`}
             variant={isSpeaking ? 'destructive' : 'default'}
           >
             {isSpeaking ? (

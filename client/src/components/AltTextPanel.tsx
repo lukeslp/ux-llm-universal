@@ -185,10 +185,10 @@ export default function VisionPanel() {
       <div className="flex-1 overflow-y-auto chat-scroll p-4">
         {noProviders ? (
           <div className="flex flex-col items-center justify-center h-full gap-4 text-muted-foreground">
-            <div className={`w-16 h-16 flex items-center justify-center ${
-              themeName === 'hearthstone' ? 'rounded-2xl bg-amber-900/20' :
-              themeName === 'zurich' ? 'rounded-none border-2 border-border' :
-              'rounded-2xl bg-indigo-900/20'
+            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${
+              themeName === 'nebula' ? 'bg-indigo-900/20' :
+              themeName === 'slate' ? 'bg-teal-900/20' :
+              'bg-amber-900/20'
             }`}>
               <AlertTriangle className="w-8 h-8" />
             </div>
@@ -203,10 +203,10 @@ export default function VisionPanel() {
         ) : !image ? (
           /* Upload state */
           <div className="flex flex-col items-center justify-center h-full gap-4 text-muted-foreground">
-            <div className={`w-16 h-16 flex items-center justify-center ${
-              themeName === 'hearthstone' ? 'rounded-2xl bg-amber-900/20' :
-              themeName === 'zurich' ? 'rounded-none border-2 border-border' :
-              'rounded-2xl bg-indigo-900/20'
+            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${
+              themeName === 'nebula' ? 'bg-indigo-900/20' :
+              themeName === 'slate' ? 'bg-teal-900/20' :
+              'bg-amber-900/20'
             }`}>
               <Eye className="w-8 h-8" />
             </div>
@@ -234,10 +234,9 @@ export default function VisionPanel() {
             {/* Image preview + provider bar */}
             <div className="flex flex-col md:flex-row gap-4">
               {/* Image */}
-              <div className={`md:w-1/3 shrink-0 relative group overflow-hidden ${
-                themeName === 'zurich' ? 'border-[3px] border-border' :
-                themeName === 'nebula' ? 'rounded-xl border border-indigo-500/20' :
-                'rounded-xl border border-border'
+              <div className={`md:w-1/3 shrink-0 relative group overflow-hidden rounded-xl ${
+                themeName === 'nebula' ? 'border border-indigo-500/20' :
+                'border border-border'
               }`}>
                 <img src={image} alt="Uploaded for analysis" className="w-full h-auto" />
                 <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -292,7 +291,7 @@ export default function VisionPanel() {
                       key={t.id}
                       variant={activeTask === t.id ? 'default' : 'outline'}
                       size="sm"
-                      className={`h-8 text-xs ${themeName === 'zurich' ? 'rounded-none' : ''}`}
+                      className="h-8 text-xs"
                       disabled={isProcessing}
                       onClick={() => {
                         setActiveTask(t.id);
@@ -315,15 +314,13 @@ export default function VisionPanel() {
                     onKeyDown={e => e.key === 'Enter' && handleAsk()}
                     placeholder="Ask anything about this image..."
                     disabled={isProcessing}
-                    className={`flex-1 h-8 border border-border bg-card px-3 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all disabled:opacity-50 ${
-                      themeName === 'zurich' ? 'rounded-none border-2' : 'rounded-lg'
-                    }`}
+                    className="flex-1 h-8 border border-border bg-card px-3 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all disabled:opacity-50 rounded-lg"
                   />
                   <Button
                     size="sm"
                     disabled={!customQuestion.trim() || isProcessing}
                     onClick={handleAsk}
-                    className={`h-8 w-8 p-0 ${themeName === 'zurich' ? 'rounded-none' : 'rounded-lg'}`}
+                    className="h-8 w-8 p-0 rounded-lg"
                   >
                     {isProcessing && activeTask === 'ask' ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -342,9 +339,7 @@ export default function VisionPanel() {
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className={`p-3 bg-destructive/10 border border-destructive/20 ${
-                    themeName === 'zurich' ? 'rounded-none' : 'rounded-xl'
-                  }`}
+                  className="p-3 bg-destructive/10 border border-destructive/20 rounded-xl"
                 >
                   <p className="text-sm text-destructive">{error}</p>
                 </motion.div>
@@ -359,8 +354,8 @@ export default function VisionPanel() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   className={`p-4 bg-card border border-border ${
-                    themeName === 'zurich' ? 'rounded-none border-2 border-l-[4px] border-l-primary' :
                     themeName === 'nebula' ? 'rounded-xl border-l-2 border-l-indigo-500/40' :
+                    themeName === 'slate' ? 'rounded-xl border-l-2 border-l-teal-500/30' :
                     'rounded-xl border-l-2 border-l-amber-600/30'
                   }`}
                 >

@@ -15,6 +15,11 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [themeName, setThemeNameState] = useState<ThemeName>(() => {
     const stored = localStorage.getItem("themeName");
+    // Migrate removed themes to defaults
+    if (stored && !(stored in THEMES)) {
+      localStorage.removeItem("themeName");
+      return DEFAULT_THEME;
+    }
     return (stored as ThemeName) || DEFAULT_THEME;
   });
 
@@ -30,7 +35,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const root = document.documentElement;
 
     // Remove all theme classes
-    root.classList.remove("theme-hearthstone", "theme-zurich", "theme-nebula");
+    root.classList.remove("theme-lumen", "theme-slate", "theme-nebula");
     root.classList.add(`theme-${themeName}`);
 
     const config = THEMES[themeName];

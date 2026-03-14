@@ -108,10 +108,10 @@ export default function ImageGenPanel() {
       <div className="flex-1 overflow-y-auto chat-scroll p-4">
         {noProviders ? (
           <div className="flex flex-col items-center justify-center h-full gap-4 text-muted-foreground">
-            <div className={`w-16 h-16 flex items-center justify-center ${
-              themeName === 'hearthstone' ? 'rounded-2xl bg-amber-900/20' :
-              themeName === 'zurich' ? 'rounded-none border-2 border-border' :
-              'rounded-2xl bg-indigo-900/20'
+            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${
+              themeName === 'nebula' ? 'bg-indigo-900/20' :
+              themeName === 'slate' ? 'bg-teal-900/20' :
+              'bg-amber-900/20'
             }`}>
               <AlertTriangle className="w-8 h-8" />
             </div>
@@ -125,10 +125,10 @@ export default function ImageGenPanel() {
           </div>
         ) : generatedImages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-4 text-muted-foreground">
-            <div className={`w-16 h-16 flex items-center justify-center ${
-              themeName === 'hearthstone' ? 'rounded-2xl bg-amber-900/20' :
-              themeName === 'zurich' ? 'rounded-none border-2 border-border' :
-              'rounded-2xl bg-indigo-900/20'
+            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${
+              themeName === 'nebula' ? 'bg-indigo-900/20' :
+              themeName === 'slate' ? 'bg-teal-900/20' :
+              'bg-amber-900/20'
             }`}>
               <ImageIcon className="w-8 h-8" />
             </div>
@@ -147,10 +147,9 @@ export default function ImageGenPanel() {
                 key={img.timestamp + i}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className={`aspect-square overflow-hidden cursor-pointer group relative ${
-                  themeName === 'zurich' ? 'border-2 border-border' :
-                  themeName === 'nebula' ? 'rounded-xl border border-indigo-500/20' :
-                  'rounded-xl border border-border'
+                className={`aspect-square rounded-xl overflow-hidden cursor-pointer group relative ${
+                  themeName === 'nebula' ? 'border border-indigo-500/20' :
+                  'border border-border'
                 }`}
                 onClick={() => setLightboxIdx(i)}
               >
@@ -246,18 +245,14 @@ export default function ImageGenPanel() {
                   placeholder="Describe the image you want to generate..."
                   rows={1}
                   disabled={isGenerating}
-                  className={`w-full resize-none border border-border bg-card px-4 py-3 text-[15px] placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all disabled:opacity-50 ${
-                    themeName === 'zurich' ? 'rounded-none border-2' : 'rounded-xl'
-                  }`}
+                  className="w-full resize-none border border-border bg-card px-4 py-3 text-[15px] placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all disabled:opacity-50 rounded-xl"
                 />
               </div>
               <Button
                 size="sm"
                 disabled={!prompt.trim() || isGenerating}
                 onClick={handleGenerate}
-                className={`h-10 w-10 shrink-0 p-0 ${
-                  themeName === 'zurich' ? 'rounded-none' : 'rounded-full'
-                }`}
+                className="h-10 w-10 shrink-0 p-0 rounded-full"
               >
                 {isGenerating ? (
                   <Loader2 className="w-4 h-4 animate-spin" />

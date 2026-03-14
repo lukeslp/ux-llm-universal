@@ -197,9 +197,7 @@ export default function ChatInput() {
               }
               disabled={!state.isConnected && !isGenerating}
               rows={1}
-              className={`w-full resize-none border border-border bg-card px-4 py-3 text-[15px] placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-                themeName === 'zurich' ? 'rounded-none border-2' : 'rounded-xl'
-              }`}
+              className="w-full resize-none border border-border bg-card px-4 py-3 text-[15px] placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed rounded-xl"
               style={{ maxHeight: '200px' }}
             />
           </div>

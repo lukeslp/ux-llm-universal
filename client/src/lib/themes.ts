@@ -1,9 +1,9 @@
 // ============================================================
 // Theme Definitions — Three selectable UX concepts
-// Hearthstone (warm dark), Zurich (Swiss brutalist), Nebula (cyberpunk)
+// Lumen (warm light), Slate (neutral dark), Nebula (cyberpunk)
 // ============================================================
 
-export type ThemeName = 'hearthstone' | 'zurich' | 'nebula';
+export type ThemeName = 'lumen' | 'slate' | 'nebula';
 
 export interface ThemeConfig {
   id: ThemeName;
@@ -19,35 +19,35 @@ export interface ThemeConfig {
 }
 
 export const THEMES: Record<ThemeName, ThemeConfig> = {
-  hearthstone: {
-    id: 'hearthstone',
-    name: 'Hearthstone',
-    label: 'Warm',
-    description: 'Warm, intimate, literary',
-    alwaysDark: true,
-    borderRadius: '0.75rem',
-    fontDisplay: "'Playfair Display', Georgia, serif",
-    fontBody: "'Open Sans', system-ui, sans-serif",
-    fontMono: "'Fira Code', 'JetBrains Mono', monospace",
-    swatchColors: ['#1a0f0a', '#d4956a', '#8b6ce0'],
-  },
-  zurich: {
-    id: 'zurich',
-    name: 'Zurich',
-    label: 'Sharp',
-    description: 'Sharp, authoritative, clean',
+  lumen: {
+    id: 'lumen',
+    name: 'Lumen',
+    label: 'Light',
+    description: 'Warm, clean, readable',
     alwaysDark: false,
-    borderRadius: '0px',
-    fontDisplay: "Inter, 'Helvetica Neue', system-ui, sans-serif",
-    fontBody: "Inter, 'Helvetica Neue', system-ui, sans-serif",
-    fontMono: "'DM Mono', 'JetBrains Mono', monospace",
-    swatchColors: ['#fafafa', '#0a0a0a', '#e60000'],
+    borderRadius: '0.625rem',
+    fontDisplay: "Inter, system-ui, sans-serif",
+    fontBody: "Inter, system-ui, sans-serif",
+    fontMono: "'JetBrains Mono', monospace",
+    swatchColors: ['#faf9f6', '#1a1a1a', '#d45d2c'],
+  },
+  slate: {
+    id: 'slate',
+    name: 'Slate',
+    label: 'Dark',
+    description: 'Calm, neutral, focused',
+    alwaysDark: true,
+    borderRadius: '0.5rem',
+    fontDisplay: "Inter, system-ui, sans-serif",
+    fontBody: "Inter, system-ui, sans-serif",
+    fontMono: "'JetBrains Mono', monospace",
+    swatchColors: ['#1c1f26', '#c1c7d0', '#3b9e8f'],
   },
   nebula: {
     id: 'nebula',
     name: 'Nebula',
     label: 'Neon',
-    description: 'Technical, futuristic, immersive',
+    description: 'Technical, futuristic, vivid',
     alwaysDark: true,
     borderRadius: '0.75rem',
     fontDisplay: "Inter, system-ui, sans-serif",
@@ -57,4 +57,4 @@ export const THEMES: Record<ThemeName, ThemeConfig> = {
   },
 };
 
-export const DEFAULT_THEME: ThemeName = 'hearthstone';
+export const DEFAULT_THEME: ThemeName = 'slate';

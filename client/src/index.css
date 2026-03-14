@@ -46,145 +46,143 @@
 }
 
 /* ============================================================
-   HEARTHSTONE — Warm Dark Immersive
-   Always dark. Warm cream on deep brown. Serif display.
+   LUMEN — Warm Clean Light
+   Light default, dark mode available. Warm off-white, burnt
+   orange accent, high readability.
    ============================================================ */
 
-.theme-hearthstone {
-  --radius: 0.75rem;
-  --theme-font-display: 'Playfair Display', Georgia, serif;
-  --theme-font-body: 'Open Sans', system-ui, sans-serif;
-  --theme-font-mono: 'Fira Code', 'JetBrains Mono', monospace;
-  /* Theme-specific accents */
-  --theme-accent-gradient: linear-gradient(135deg, #d4956a 0%, #c07850 100%);
-  --theme-agent-accent: oklch(0.58 0.18 290);
-  --theme-user-bubble: oklch(0.22 0.04 50);
+.theme-lumen {
+  --radius: 0.625rem;
+  --theme-font-display: Inter, system-ui, sans-serif;
+  --theme-font-body: Inter, system-ui, sans-serif;
+  --theme-font-mono: 'JetBrains Mono', monospace;
+  --theme-accent-gradient: linear-gradient(135deg, #d45d2c 0%, #b84a1e 100%);
+  --theme-agent-accent: oklch(0.6 0.16 35);
+  --theme-user-bubble: oklch(0.25 0.02 250);
   --theme-border-width: 1px;
-  --theme-header-border: 1px solid oklch(0.28 0.03 50);
-  --theme-msg-border-user: oklch(0.55 0.14 50);
-  --theme-msg-border-assistant: oklch(0.35 0.08 50);
-  /* Always dark — single set of vars */
-  --background: oklch(0.14 0.02 40);
-  --foreground: oklch(0.9 0.02 80);
-  --card: oklch(0.2 0.03 40);
-  --card-foreground: oklch(0.9 0.02 80);
-  --popover: oklch(0.2 0.03 40);
-  --popover-foreground: oklch(0.9 0.02 80);
-  --primary: oklch(0.72 0.12 55);
-  --primary-foreground: oklch(0.14 0.02 40);
-  --secondary: oklch(0.25 0.03 40);
-  --secondary-foreground: oklch(0.8 0.02 80);
-  --muted: oklch(0.25 0.02 40);
-  --muted-foreground: oklch(0.6 0.03 60);
-  --accent: oklch(0.28 0.03 40);
-  --accent-foreground: oklch(0.9 0.02 80);
-  --destructive: oklch(0.55 0.18 25);
-  --destructive-foreground: oklch(0.95 0 0);
-  --border: oklch(0.3 0.03 50);
-  --input: oklch(0.3 0.03 50);
-  --ring: oklch(0.72 0.12 55);
-  --chart-1: oklch(0.72 0.12 55);
-  --chart-2: oklch(0.6 0.15 240);
-  --chart-3: oklch(0.65 0.12 150);
-  --chart-4: oklch(0.75 0.1 60);
-  --chart-5: oklch(0.58 0.18 290);
-  --sidebar: oklch(0.16 0.025 40);
-  --sidebar-foreground: oklch(0.9 0.02 80);
-  --sidebar-primary: oklch(0.72 0.12 55);
-  --sidebar-primary-foreground: oklch(0.14 0.02 40);
-  --sidebar-accent: oklch(0.25 0.03 40);
-  --sidebar-accent-foreground: oklch(0.9 0.02 80);
-  --sidebar-border: oklch(0.3 0.03 50);
-  --sidebar-ring: oklch(0.72 0.12 55);
+  --theme-msg-border-user: oklch(0.5 0.12 250);
+  --theme-msg-border-assistant: oklch(0.6 0.16 35);
+  /* Light mode */
+  --background: oklch(0.98 0.005 80);
+  --foreground: oklch(0.15 0.01 250);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.15 0.01 250);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.15 0.01 250);
+  --primary: oklch(0.58 0.18 35);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.96 0.005 250);
+  --secondary-foreground: oklch(0.35 0.02 250);
+  --muted: oklch(0.955 0.005 80);
+  --muted-foreground: oklch(0.48 0.01 250);
+  --accent: oklch(0.96 0.01 60);
+  --accent-foreground: oklch(0.25 0.02 250);
+  --destructive: oklch(0.55 0.2 25);
+  --destructive-foreground: oklch(0.99 0 0);
+  --border: oklch(0.9 0.005 80);
+  --input: oklch(0.9 0.005 80);
+  --ring: oklch(0.58 0.18 35);
+  --chart-1: oklch(0.58 0.18 35);
+  --chart-2: oklch(0.55 0.15 250);
+  --chart-3: oklch(0.6 0.14 150);
+  --chart-4: oklch(0.7 0.1 80);
+  --chart-5: oklch(0.5 0.18 300);
+  --sidebar: oklch(0.975 0.004 80);
+  --sidebar-foreground: oklch(0.15 0.01 250);
+  --sidebar-primary: oklch(0.58 0.18 35);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.96 0.008 60);
+  --sidebar-accent-foreground: oklch(0.25 0.02 250);
+  --sidebar-border: oklch(0.92 0.005 80);
+  --sidebar-ring: oklch(0.58 0.18 35);
+}
+
+/* Lumen dark mode */
+.theme-lumen.dark,
+.theme-lumen .dark {
+  --background: oklch(0.15 0.01 250);
+  --foreground: oklch(0.92 0.005 80);
+  --card: oklch(0.19 0.01 250);
+  --card-foreground: oklch(0.92 0.005 80);
+  --popover: oklch(0.19 0.01 250);
+  --popover-foreground: oklch(0.92 0.005 80);
+  --primary: oklch(0.65 0.16 35);
+  --primary-foreground: oklch(0.15 0.01 250);
+  --secondary: oklch(0.24 0.01 250);
+  --secondary-foreground: oklch(0.8 0.005 80);
+  --muted: oklch(0.24 0.01 250);
+  --muted-foreground: oklch(0.6 0.008 80);
+  --accent: oklch(0.26 0.012 250);
+  --accent-foreground: oklch(0.92 0.005 80);
+  --destructive: oklch(0.6 0.2 25);
+  --destructive-foreground: oklch(0.99 0 0);
+  --border: oklch(0.28 0.01 250);
+  --input: oklch(0.28 0.01 250);
+  --ring: oklch(0.65 0.16 35);
+  --sidebar: oklch(0.17 0.01 250);
+  --sidebar-foreground: oklch(0.92 0.005 80);
+  --sidebar-primary: oklch(0.65 0.16 35);
+  --sidebar-primary-foreground: oklch(0.15 0.01 250);
+  --sidebar-accent: oklch(0.24 0.01 250);
+  --sidebar-accent-foreground: oklch(0.92 0.005 80);
+  --sidebar-border: oklch(0.28 0.01 250);
+  --sidebar-ring: oklch(0.65 0.16 35);
 }
 
 /* ============================================================
-   ZURICH — Swiss Brutalist Light
-   Light default with dark mode option. Bold borders, zero radius.
+   SLATE — Neutral Dark
+   Always dark. Desaturated grays, teal accent, zero drama.
    ============================================================ */
 
-.theme-zurich {
-  --radius: 0px;
-  --theme-font-display: Inter, 'Helvetica Neue', system-ui, sans-serif;
-  --theme-font-body: Inter, 'Helvetica Neue', system-ui, sans-serif;
-  --theme-font-mono: 'DM Mono', 'JetBrains Mono', monospace;
-  --theme-accent-gradient: none;
-  --theme-agent-accent: oklch(0.55 0.22 29);
-  --theme-user-bubble: oklch(0.13 0 0);
-  --theme-border-width: 3px;
-  --theme-header-border: 3px solid oklch(0.13 0 0);
-  --theme-msg-border-user: oklch(0.13 0 0);
-  --theme-msg-border-assistant: oklch(0.55 0.22 29);
-  /* Light mode */
-  --background: oklch(0.985 0 0);
-  --foreground: oklch(0.13 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.13 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.13 0 0);
-  --primary: oklch(0.55 0.22 29);
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.96 0 0);
-  --secondary-foreground: oklch(0.13 0 0);
-  --muted: oklch(0.96 0 0);
-  --muted-foreground: oklch(0.5 0 0);
-  --accent: oklch(0.96 0 0);
-  --accent-foreground: oklch(0.13 0 0);
-  --destructive: oklch(0.55 0.22 29);
+.theme-slate {
+  --radius: 0.5rem;
+  --theme-font-display: Inter, system-ui, sans-serif;
+  --theme-font-body: Inter, system-ui, sans-serif;
+  --theme-font-mono: 'JetBrains Mono', monospace;
+  --theme-accent-gradient: linear-gradient(135deg, #3b9e8f 0%, #2d8075 100%);
+  --theme-agent-accent: oklch(0.65 0.1 170);
+  --theme-user-bubble: oklch(0.24 0.01 250);
+  --theme-border-width: 1px;
+  --theme-msg-border-user: oklch(0.5 0.08 250);
+  --theme-msg-border-assistant: oklch(0.6 0.1 170);
+  /* Always dark */
+  --background: oklch(0.16 0.008 260);
+  --foreground: oklch(0.88 0.005 250);
+  --card: oklch(0.2 0.008 260);
+  --card-foreground: oklch(0.88 0.005 250);
+  --popover: oklch(0.2 0.008 260);
+  --popover-foreground: oklch(0.88 0.005 250);
+  --primary: oklch(0.65 0.1 170);
+  --primary-foreground: oklch(0.15 0.01 170);
+  --secondary: oklch(0.24 0.008 260);
+  --secondary-foreground: oklch(0.78 0.005 250);
+  --muted: oklch(0.24 0.008 260);
+  --muted-foreground: oklch(0.58 0.008 250);
+  --accent: oklch(0.26 0.008 260);
+  --accent-foreground: oklch(0.88 0.005 250);
+  --destructive: oklch(0.58 0.18 25);
   --destructive-foreground: oklch(0.99 0 0);
-  --border: oklch(0.13 0 0);
-  --input: oklch(0.85 0 0);
-  --ring: oklch(0.55 0.22 29);
-  --chart-1: oklch(0.55 0.22 29);
-  --chart-2: oklch(0.55 0.2 260);
-  --chart-3: oklch(0.13 0 0);
-  --chart-4: oklch(0.7 0 0);
-  --chart-5: oklch(0.4 0 0);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.13 0 0);
-  --sidebar-primary: oklch(0.55 0.22 29);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.96 0 0);
-  --sidebar-accent-foreground: oklch(0.13 0 0);
-  --sidebar-border: oklch(0.13 0 0);
-  --sidebar-ring: oklch(0.55 0.22 29);
-}
-
-/* Zurich dark mode */
-.theme-zurich.dark,
-.theme-zurich .dark {
-  --background: oklch(0.13 0 0);
-  --foreground: oklch(0.95 0 0);
-  --card: oklch(0.17 0 0);
-  --card-foreground: oklch(0.95 0 0);
-  --popover: oklch(0.17 0 0);
-  --popover-foreground: oklch(0.95 0 0);
-  --primary: oklch(0.55 0.22 29);
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.2 0 0);
-  --secondary-foreground: oklch(0.95 0 0);
-  --muted: oklch(0.2 0 0);
-  --muted-foreground: oklch(0.65 0 0);
-  --accent: oklch(0.2 0 0);
-  --accent-foreground: oklch(0.95 0 0);
-  --destructive: oklch(0.55 0.22 29);
-  --destructive-foreground: oklch(0.99 0 0);
-  --border: oklch(0.95 0 0);
-  --input: oklch(0.3 0 0);
-  --ring: oklch(0.55 0.22 29);
-  --sidebar: oklch(0.13 0 0);
-  --sidebar-foreground: oklch(0.95 0 0);
-  --sidebar-primary: oklch(0.55 0.22 29);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.2 0 0);
-  --sidebar-accent-foreground: oklch(0.95 0 0);
-  --sidebar-border: oklch(0.95 0 0);
-  --sidebar-ring: oklch(0.55 0.22 29);
+  --border: oklch(0.3 0.008 260);
+  --input: oklch(0.3 0.008 260);
+  --ring: oklch(0.65 0.1 170);
+  --chart-1: oklch(0.65 0.1 170);
+  --chart-2: oklch(0.6 0.12 250);
+  --chart-3: oklch(0.65 0.12 80);
+  --chart-4: oklch(0.55 0.1 300);
+  --chart-5: oklch(0.58 0.18 25);
+  --sidebar: oklch(0.17 0.008 260);
+  --sidebar-foreground: oklch(0.88 0.005 250);
+  --sidebar-primary: oklch(0.65 0.1 170);
+  --sidebar-primary-foreground: oklch(0.15 0.01 170);
+  --sidebar-accent: oklch(0.24 0.008 260);
+  --sidebar-accent-foreground: oklch(0.88 0.005 250);
+  --sidebar-border: oklch(0.3 0.008 260);
+  --sidebar-ring: oklch(0.65 0.1 170);
 }
 
 /* ============================================================
    NEBULA — Cyberpunk Orchestrator
-   Always dark. Indigo/cyan glows on deep navy slate.
+   Always dark. Indigo/cyan glows on deep navy.
    ============================================================ */
 
 .theme-nebula {
@@ -196,7 +194,6 @@
   --theme-agent-accent: oklch(0.7 0.15 190);
   --theme-user-bubble: oklch(0.3 0.04 260);
   --theme-border-width: 1px;
-  --theme-header-border: 1px solid oklch(0.35 0.02 250);
   --theme-msg-border-user: oklch(0.6 0.18 265);
   --theme-msg-border-assistant: oklch(0.6 0.18 265);
   /* Always dark */
@@ -258,35 +255,6 @@
   input[type="radio"]:not(:disabled) {
     @apply cursor-pointer;
   }
-
-  /* Hearthstone: serif for headings */
-  .theme-hearthstone h1,
-  .theme-hearthstone h2,
-  .theme-hearthstone h3,
-  .theme-hearthstone h4 {
-    font-family: var(--theme-font-display);
-    letter-spacing: -0.02em;
-  }
-
-  /* Zurich: uppercase labels and bold headings */
-  .theme-zurich h1,
-  .theme-zurich h2,
-  .theme-zurich h3,
-  .theme-zurich h4 {
-    font-family: var(--theme-font-display);
-    letter-spacing: -0.01em;
-    font-weight: 700;
-  }
-
-  /* Nebula: tight headings */
-  .theme-nebula h1,
-  .theme-nebula h2,
-  .theme-nebula h3,
-  .theme-nebula h4 {
-    font-family: var(--theme-font-display);
-    letter-spacing: -0.02em;
-    font-weight: 700;
-  }
 }
 
 /* ============================================================
@@ -324,24 +292,8 @@
 }
 
 /* ============================================================
-   THEME-SPECIFIC UTILITY CLASSES
+   THEME UTILITY CLASSES
    ============================================================ */
-
-/* Hearthstone: glassmorphism surfaces */
-.theme-hearthstone .glass {
-  backdrop-filter: blur(12px);
-  background: oklch(0.2 0.03 40 / 0.4);
-  border: 1px solid oklch(0.35 0.04 50 / 0.3);
-}
-
-/* Zurich: bold Swiss borders */
-.theme-zurich .swiss-border {
-  border: 3px solid oklch(0.13 0 0);
-}
-.theme-zurich.dark .swiss-border,
-.theme-zurich .dark .swiss-border {
-  border-color: oklch(0.95 0 0);
-}
 
 /* Nebula: glow effects */
 .theme-nebula .glow {
@@ -352,22 +304,15 @@
 }
 
 /* ============================================================
-   EYEBROW UTILITY (all themes)
+   EYEBROW (all themes)
    ============================================================ */
 
 .eyebrow {
   font-size: 0.7rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.15em;
+  letter-spacing: 0.12em;
   color: var(--muted-foreground);
-}
-
-/* Zurich: wider tracking for eyebrows */
-.theme-zurich .eyebrow {
-  letter-spacing: 0.25em;
-  font-size: 0.65rem;
-  font-weight: 700;
 }
 
 /* ============================================================
@@ -380,44 +325,16 @@
 .chat-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
-
-/* Hearthstone scrollbar */
-.theme-hearthstone .chat-scroll::-webkit-scrollbar-thumb {
-  background: oklch(0.35 0.03 50);
+.chat-scroll::-webkit-scrollbar-thumb {
+  background: var(--border);
   border-radius: 3px;
 }
-.theme-hearthstone .chat-scroll::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.45 0.03 50);
-}
-
-/* Zurich scrollbar */
-.theme-zurich .chat-scroll::-webkit-scrollbar-thumb {
-  background: oklch(0.8 0 0);
-  border-radius: 0;
-}
-.theme-zurich .chat-scroll::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.6 0 0);
-}
-.theme-zurich.dark .chat-scroll::-webkit-scrollbar-thumb,
-.theme-zurich .dark .chat-scroll::-webkit-scrollbar-thumb {
-  background: oklch(0.35 0 0);
-}
-.theme-zurich.dark .chat-scroll::-webkit-scrollbar-thumb:hover,
-.theme-zurich .dark .chat-scroll::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.45 0 0);
-}
-
-/* Nebula scrollbar */
-.theme-nebula .chat-scroll::-webkit-scrollbar-thumb {
-  background: oklch(0.35 0.02 255);
-  border-radius: 3px;
-}
-.theme-nebula .chat-scroll::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.45 0.02 255);
+.chat-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
 }
 
 /* ============================================================
-   PROSE (Markdown content in chat messages)
+   PROSE (Markdown in chat messages)
    ============================================================ */
 
 .prose-chat {
@@ -443,7 +360,6 @@
 .prose-chat ol { list-style-type: decimal; }
 .prose-chat li { margin-bottom: 0.25em; }
 
-/* Blockquote */
 .prose-chat blockquote {
   border-left: 3px solid var(--primary);
   padding-left: 1em;
@@ -452,7 +368,6 @@
   font-style: italic;
 }
 
-/* Inline code */
 .prose-chat code:not(pre code) {
   background: var(--muted);
   padding: 0.15em 0.4em;
@@ -461,7 +376,6 @@
   font-family: var(--theme-font-mono);
 }
 
-/* Code blocks */
 .prose-chat pre {
   background: oklch(0.14 0.01 260);
   color: oklch(0.92 0.005 80);
@@ -480,26 +394,13 @@
   border-radius: 0;
 }
 
-/* Zurich: zero-radius code blocks */
-.theme-zurich .prose-chat pre {
-  border-radius: 0;
-  border: 2px solid var(--border);
-}
-.theme-zurich .prose-chat code:not(pre code) {
-  border-radius: 0;
-}
-
-/* Links */
 .prose-chat a {
   color: var(--primary);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-.prose-chat a:hover {
-  opacity: 0.8;
-}
+.prose-chat a:hover { opacity: 0.8; }
 
-/* Tables */
 .prose-chat table {
   width: 100%;
   border-collapse: collapse;
@@ -516,12 +417,6 @@
   font-weight: 600;
 }
 
-/* Zurich: thicker table borders */
-.theme-zurich .prose-chat th,
-.theme-zurich .prose-chat td {
-  border-width: 2px;
-}
-
 .prose-chat img, .prose-chat video {
   max-width: 100%;
   border-radius: var(--radius);
@@ -532,15 +427,11 @@
   border-top: 1px solid var(--border);
   margin: 1em 0;
 }
-.theme-zurich .prose-chat hr {
-  border-top-width: 3px;
-}
 
 /* ============================================================
    ANIMATIONS
    ============================================================ */
 
-/* Thinking block pulse */
 @keyframes thinking-pulse {
   0%, 100% { opacity: 0.6; }
   50% { opacity: 1; }
@@ -549,7 +440,6 @@
   animation: thinking-pulse 2s ease-in-out infinite;
 }
 
-/* Typing indicator */
 @keyframes bounce-dot {
   0%, 80%, 100% { transform: translateY(0); }
   40% { transform: translateY(-6px); }
@@ -560,7 +450,6 @@
 .typing-dot:nth-child(2) { animation-delay: 0.16s; }
 .typing-dot:nth-child(3) { animation-delay: 0.32s; }
 
-/* Streaming cursor */
 @keyframes blink-cursor {
   0%, 100% { opacity: 1; }
   50% { opacity: 0; }
@@ -572,21 +461,10 @@
   margin-left: 1px;
 }
 
-/* Nebula: ambient glow pulse */
 @keyframes nebula-glow {
   0%, 100% { box-shadow: 0 0 15px oklch(0.68 0.16 275 / 0.2); }
   50% { box-shadow: 0 0 25px oklch(0.68 0.16 275 / 0.4); }
 }
 .theme-nebula .glow-pulse {
   animation: nebula-glow 3s ease-in-out infinite;
-}
-
-/* Hearthstone: warm ambient gradient bg */
-.theme-hearthstone .ambient-bg {
-  background: linear-gradient(135deg, oklch(0.14 0.02 40) 0%, oklch(0.16 0.03 30) 50%, oklch(0.14 0.02 40) 100%);
-}
-
-/* Nebula: gradient bg */
-.theme-nebula .ambient-bg {
-  background: linear-gradient(135deg, oklch(0.16 0.02 260) 0%, oklch(0.18 0.04 280) 50%, oklch(0.16 0.02 260) 100%);
 }

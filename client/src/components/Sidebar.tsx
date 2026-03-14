@@ -63,11 +63,11 @@ export default function Sidebar({ onClose }: Props) {
               'w-7 h-7 flex items-center justify-center',
               isManus
                 ? 'rounded-lg bg-gradient-to-br from-violet-500 to-purple-600'
-                : themeName === 'hearthstone'
-                ? 'rounded-lg bg-gradient-to-br from-amber-600 to-orange-700'
-                : themeName === 'zurich'
-                ? 'rounded-none bg-[oklch(0.13_0_0)] dark:bg-[oklch(0.95_0_0)]'
-                : 'rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600',
+                : themeName === 'nebula'
+                ? 'rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600'
+                : themeName === 'slate'
+                ? 'rounded-lg bg-gradient-to-br from-teal-600 to-cyan-700'
+                : 'rounded-lg bg-gradient-to-br from-amber-600 to-orange-700',
             )}
           >
             {isManus ? (
@@ -132,14 +132,10 @@ export default function Sidebar({ onClose }: Props) {
                       key={conv.id}
                       className={cn(
                         'group flex items-center gap-2 px-3 py-2.5 cursor-pointer transition-colors',
-                        themeName === 'zurich' ? 'rounded-none' : 'rounded-xl',
+                        'rounded-xl',
                         conv.id === state.activeConversationId
-                          ? `bg-sidebar-accent text-sidebar-accent-foreground border-l-[3px] border-l-primary ${
-                              themeName === 'zurich' ? 'border-l-[4px]' : ''
-                            }`
-                          : `hover:bg-sidebar-accent/50 border-l-[3px] border-l-transparent ${
-                              themeName === 'zurich' ? 'border-l-[4px]' : ''
-                            }`
+                          ? 'bg-sidebar-accent text-sidebar-accent-foreground border-l-[3px] border-l-primary'
+                          : 'hover:bg-sidebar-accent/50 border-l-[3px] border-l-transparent'
                       )}
                       onClick={() => handleSelectConversation(conv.id)}
                     >

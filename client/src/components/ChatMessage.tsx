@@ -35,6 +35,7 @@ import {
 import { Button } from '@/components/ui/button';
 import type { ChatMessage as ChatMessageType } from '@/lib/types';
 import { useTheme } from '@/contexts/ThemeContext';
+import { stripEmoji } from '@/lib/emoji-replace';
 import RichEmbed, { extractUrls } from '@/components/RichEmbed';
 
 const AI_AVATAR_URL = '/images/ai-avatar.png';
@@ -455,22 +456,22 @@ export default function ChatMessage({ message, isLast }: Props) {
       {/* Avatar — theme-aware */}
       <div className="shrink-0 mt-0.5">
         {isUser ? (
-          <div className={`w-8 h-8 flex items-center justify-center ${
-            themeName === 'zurich' ? 'rounded-none bg-[oklch(0.13_0_0)] dark:bg-[oklch(0.95_0_0)]' :
-            themeName === 'nebula' ? 'rounded-full bg-indigo-900/40' :
-            'rounded-full bg-amber-900/30'
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+            themeName === 'nebula' ? 'bg-indigo-900/40' :
+            themeName === 'slate' ? 'bg-teal-900/30' :
+            'bg-amber-900/30'
           }`}>
             <User className={`w-4 h-4 ${
-              themeName === 'zurich' ? 'text-white dark:text-[oklch(0.13_0_0)]' :
               themeName === 'nebula' ? 'text-indigo-300' :
+              themeName === 'slate' ? 'text-teal-300' :
               'text-amber-300'
             }`} />
           </div>
         ) : (
-          <div className={`w-8 h-8 overflow-hidden shadow-sm ${
-            themeName === 'zurich' ? 'rounded-none ring-2 ring-[oklch(0.13_0_0)] dark:ring-[oklch(0.95_0_0)]' :
-            themeName === 'nebula' ? 'rounded-full ring-2 ring-indigo-500/30' :
-            'rounded-full ring-2 ring-amber-700/30'
+          <div className={`w-8 h-8 rounded-full overflow-hidden shadow-sm ${
+            themeName === 'nebula' ? 'ring-2 ring-indigo-500/30' :
+            themeName === 'slate' ? 'ring-2 ring-teal-500/30' :
+            'ring-2 ring-amber-700/30'
           }`}>
             <img src={AI_AVATAR_URL} alt="AI" className="w-full h-full object-cover" />
           </div>
@@ -533,15 +534,15 @@ export default function ChatMessage({ message, isLast }: Props) {
         <div
           className={`px-4 py-3 ${
             isUser
-              ? themeName === 'zurich'
-                ? 'rounded-none bg-[oklch(0.13_0_0)] text-white dark:bg-[oklch(0.95_0_0)] dark:text-[oklch(0.13_0_0)] border-l-[4px] border-l-[oklch(0.13_0_0)] dark:border-l-[oklch(0.95_0_0)] max-w-lg'
-                : themeName === 'nebula'
+              ? themeName === 'nebula'
                 ? 'rounded-2xl rounded-br-md bg-indigo-900/40 text-white border border-indigo-500/20 max-w-lg'
+                : themeName === 'slate'
+                ? 'rounded-2xl rounded-br-md bg-teal-900/30 text-teal-50 border border-teal-700/20 max-w-lg'
                 : 'rounded-2xl rounded-br-md bg-amber-900/30 text-amber-50 border border-amber-700/20 max-w-lg'
-              : themeName === 'zurich'
-              ? 'rounded-none bg-card border-[3px] border-border border-l-[4px] border-l-primary shadow-none w-full max-w-none'
               : themeName === 'nebula'
               ? 'rounded-2xl rounded-bl-md bg-card border border-border border-l-2 border-l-indigo-500/40 shadow-sm w-full max-w-none'
+              : themeName === 'slate'
+              ? 'rounded-2xl rounded-bl-md bg-card border border-border border-l-2 border-l-teal-500/30 shadow-sm w-full max-w-none'
               : 'rounded-2xl rounded-bl-md bg-card border border-border border-l-2 border-l-amber-600/30 shadow-sm w-full max-w-none'
           }`}
         >
@@ -564,7 +565,7 @@ export default function ChatMessage({ message, isLast }: Props) {
               <p className="text-[15px] leading-relaxed whitespace-pre-wrap break-words">{message.content}</p>
             ) : (
               <div className={`prose-chat ${message.isStreaming && isLast ? 'streaming-cursor' : ''}`}>
-                <Streamdown>{message.content}</Streamdown>
+                <Streamdown>{stripEmoji(message.content)}</Streamdown>
               </div>
             )
           ) : message.isStreaming ? (

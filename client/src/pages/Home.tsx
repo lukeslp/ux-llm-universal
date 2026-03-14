@@ -179,9 +179,7 @@ export default function Home() {
                     variant="outline"
                     size="sm"
                     onClick={scrollToBottom}
-                    className={`shadow-md bg-card h-8 px-3 gap-1 ${
-                      themeName === 'zurich' ? 'rounded-none' : 'rounded-full'
-                    }`}
+                    className="shadow-md bg-card h-8 px-3 gap-1 rounded-full"
                   >
                     <ChevronDown className="w-3.5 h-3.5" />
                     <span className="text-xs">Scroll down</span>
@@ -208,8 +206,8 @@ export default function Home() {
 
   return (
     <div className={`h-screen flex overflow-hidden bg-background ${
-      themeName === 'hearthstone' ? 'ambient-bg' :
-      themeName === 'nebula' ? 'ambient-bg' : ''
+      themeName === 'lumen' ? '' :
+      themeName === 'nebula' ? 'ambient-bg' : 'ambient-bg'
     }`}>
       {/* Desktop Sidebar — collapsible */}
       <AnimatePresence initial={false}>
@@ -243,15 +241,13 @@ export default function Home() {
       {/* Main Area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Bar */}
-        <header className={`flex items-center justify-between px-4 py-3 border-b bg-background/80 backdrop-blur-sm shrink-0 z-10 ${
-          themeName === 'zurich' ? 'border-b-[3px] border-border' : 'border-border'
-        }`}>
+        <header className="flex items-center justify-between px-4 py-3 border-b border-border bg-background/80 backdrop-blur-sm shrink-0 z-10">
           <div className="flex items-center gap-2">
             {/* Mobile menu button */}
             <Button
               variant="ghost"
               size="sm"
-              className={`lg:hidden h-9 w-9 p-0 ${themeName === 'zurich' ? 'rounded-none' : 'rounded-full'}`}
+              className="lg:hidden h-9 w-9 p-0 rounded-full"
               onClick={() => dispatch({ type: 'TOGGLE_SIDEBAR' })}
             >
               <Menu className="w-5 h-5" />
@@ -261,7 +257,7 @@ export default function Home() {
             <Button
               variant="ghost"
               size="sm"
-              className={`hidden lg:flex h-9 w-9 p-0 ${themeName === 'zurich' ? 'rounded-none' : 'rounded-full'}`}
+              className="hidden lg:flex h-9 w-9 p-0 rounded-full"
               onClick={() => setDesktopSidebarOpen(prev => !prev)}
               title={desktopSidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
             >
@@ -269,14 +265,12 @@ export default function Home() {
             </Button>
 
             {/* App icon — theme-aware gradient */}
-            <div className={`w-7 h-7 flex items-center justify-center shadow-sm shrink-0 ${
-              themeName === 'hearthstone' ? 'rounded-lg bg-gradient-to-br from-amber-600 to-orange-700'
-              : themeName === 'zurich' ? 'rounded-none bg-[oklch(0.13_0_0)] dark:bg-[oklch(0.95_0_0)]'
-              : 'rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600'
+            <div className={`w-7 h-7 rounded-lg flex items-center justify-center shadow-sm shrink-0 ${
+              themeName === 'nebula' ? 'bg-gradient-to-br from-indigo-500 to-purple-600'
+              : themeName === 'slate' ? 'bg-gradient-to-br from-teal-600 to-cyan-700'
+              : 'bg-gradient-to-br from-amber-600 to-orange-700'
             }`}>
-              <Sparkles className={`w-3.5 h-3.5 ${
-                themeName === 'zurich' ? 'text-white dark:text-[oklch(0.13_0_0)]' : 'text-white'
-              }`} />
+              <Sparkles className="w-3.5 h-3.5 text-white" />
             </div>
 
             {/* Provider + Model dropdowns — hidden when mode has its own selectors */}
@@ -327,9 +321,7 @@ export default function Home() {
                 <button
                   key={mode.id}
                   onClick={() => setMode(mode.id)}
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium transition-all ${
-                    themeName === 'zurich' ? 'rounded-none' : 'rounded-md'
-                  } ${
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium transition-all rounded-md ${
                     isActive
                       ? 'bg-card text-foreground shadow-sm'
                       : 'text-muted-foreground hover:text-foreground'
@@ -363,7 +355,7 @@ export default function Home() {
             <Button
               variant="ghost"
               size="sm"
-              className={`h-9 w-9 p-0 ${themeName === 'zurich' ? 'rounded-none' : 'rounded-full'}`}
+              className="h-9 w-9 p-0 rounded-full"
               onClick={createConversation}
               title="New chat (Ctrl+N)"
             >
@@ -372,7 +364,7 @@ export default function Home() {
             <Button
               variant="ghost"
               size="sm"
-              className={`h-9 w-9 p-0 ${themeName === 'zurich' ? 'rounded-none' : 'rounded-full'}`}
+              className="h-9 w-9 p-0 rounded-full"
               onClick={() => dispatch({ type: 'TOGGLE_SETTINGS' })}
               title="Settings (Ctrl+,)"
             >
