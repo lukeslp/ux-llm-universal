@@ -13,6 +13,7 @@ export interface Provider {
   defaultModel: string;
   available: boolean;
   supportsTools: boolean;
+  taskBased?: boolean;
 }
 
 export interface DreamerMessage {

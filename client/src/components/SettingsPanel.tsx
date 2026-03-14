@@ -74,6 +74,7 @@ export default function SettingsPanel() {
   };
 
   const isOllama = !settings.provider || settings.provider === 'ollama';
+  const isManus = settings.provider === 'manus';
 
   const handleProviderChange = (id: string) => {
     updateSetting('provider', id);
@@ -281,6 +282,27 @@ export default function SettingsPanel() {
             </>
           )}
 
+          {/* Manus info banner — shown when Manus selected */}
+          {isManus && (
+            <>
+              <Separator />
+              <section className="rounded-xl border border-violet-200 dark:border-violet-800/50 bg-violet-50/40 dark:bg-violet-950/20 p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-6 h-6 rounded-md bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shrink-0">
+                    <span className="text-white text-[10px] font-bold">M</span>
+                  </div>
+                  <p className="text-sm font-semibold text-violet-700 dark:text-violet-300">Manus Task Mode</p>
+                </div>
+                <p className="text-xs text-violet-600/70 dark:text-violet-400/70 leading-relaxed">
+                  Manus is an async task agent, not a chat API. Submit a project description and it will research, plan, and execute — returning structured results.
+                </p>
+                <p className="text-xs text-violet-600/50 dark:text-violet-400/50 mt-2">
+                  Generation settings (temperature, tokens, tools, streaming) do not apply to Manus tasks.
+                </p>
+              </section>
+            </>
+          )}
+
           <Separator />
 
           {/* Model Selection */}
@@ -371,10 +393,10 @@ export default function SettingsPanel() {
             </div>
           </section>
 
-          <Separator />
+          {!isManus && <Separator />}
 
-          {/* Generation Settings */}
-          <section>
+          {/* Generation Settings — hidden for Manus */}
+          {!isManus && <section>
             <div className="flex items-center gap-2 mb-3">
               <Thermometer className="w-4 h-4 text-primary" />
               <h3 className="font-semibold text-sm">Generation</h3>
@@ -448,12 +470,12 @@ export default function SettingsPanel() {
                 </div>
               </div>
             </div>
-          </section>
+          </section>}
 
-          <Separator />
+          {!isManus && <Separator />}
 
-          {/* Features */}
-          <section>
+          {/* Features — hidden for Manus */}
+          {!isManus && <section>
             <div className="flex items-center gap-2 mb-3">
               <Zap className="w-4 h-4 text-primary" />
               <h3 className="font-semibold text-sm">Features</h3>
@@ -501,12 +523,12 @@ export default function SettingsPanel() {
                 </div>
               )}
             </div>
-          </section>
+          </section>}
 
-          <Separator />
+          {!isManus && <Separator />}
 
-          {/* System Prompt */}
-          <section>
+          {/* System Prompt — hidden for Manus */}
+          {!isManus && <section>
             <div className="flex items-center gap-2 mb-3">
               <MessageSquare className="w-4 h-4 text-primary" />
               <h3 className="font-semibold text-sm">System Instructions</h3>
@@ -524,12 +546,12 @@ export default function SettingsPanel() {
                 Optional instructions that shape how the model responds
               </p>
             </div>
-          </section>
+          </section>}
 
-          <Separator />
+          {!isManus && <Separator />}
 
-          {/* Tool Categories */}
-          {settings.enableTools && state.toolRegistry && Object.keys(state.toolRegistry.categories).length > 0 && (
+          {/* Tool Categories — hidden for Manus */}
+          {!isManus && settings.enableTools && state.toolRegistry && Object.keys(state.toolRegistry.categories).length > 0 && (
             <>
               <section>
                 <div className="flex items-center gap-2 mb-3">

@@ -157,3 +157,36 @@ export const DEFAULT_SETTINGS: AppSettings = {
 
 // Built-in tools are now defined in tool-service.ts
 // Remote tools are fetched dynamically from the API gateway
+
+// ============================================================
+// Manus Task Types — Async task-based agent (NOT chat)
+// ============================================================
+
+export type ManusTaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+
+export interface ManusArtifact {
+  type: 'text' | 'file' | 'code' | 'image' | 'link';
+  name: string;
+  content: string;
+  mimeType?: string;
+}
+
+export interface ManusStep {
+  label: string;
+  status: 'pending' | 'running' | 'done';
+  timestamp: number;
+  detail?: string;
+}
+
+export interface ManusTask {
+  id: string;
+  prompt: string;
+  model: string;
+  status: ManusTaskStatus;
+  createdAt: number;
+  updatedAt: number;
+  result?: string;
+  artifacts?: ManusArtifact[];
+  error?: string;
+  steps?: ManusStep[];
+}

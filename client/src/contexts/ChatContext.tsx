@@ -12,8 +12,10 @@ import type {
   OllamaTool,
   OllamaModel,
   ToolCall,
+  ManusTask,
 } from '@/lib/types';
 import { DEFAULT_SETTINGS } from '@/lib/types';
+import { createManusTask, cancelManusTask as cancelManusTaskApi, getManusTaskStatus } from '@/lib/manus-client';
 import { ollamaClient } from '@/lib/ollama-client';
 import { fetchProviders, streamDreamerChat } from '@/lib/dreamer-client';
 import type { Provider, DreamerStreamEvent, ToolDef } from '@/lib/dreamer-client';
@@ -39,6 +41,9 @@ interface ChatState {
   settingsOpen: boolean;
   toolRegistry: ToolRegistry | null;
   toolSchemas: OllamaTool[];
+  // Manus task state
+  manusTasks: ManusTask[];
+  activeManusTaskId: string | null;
 }
 
 const initialState: ChatState = {
@@ -54,6 +59,8 @@ const initialState: ChatState = {
   settingsOpen: false,
   toolRegistry: null,
   toolSchemas: [],
+  manusTasks: [],
+  activeManusTaskId: null,
 };
 
 // Actions
@@ -76,7 +83,13 @@ type ChatAction =
   | { type: 'TOGGLE_SETTINGS' }
   | { type: 'SET_SETTINGS_OPEN'; payload: boolean }
   | { type: 'SET_TOOL_REGISTRY'; payload: ToolRegistry }
-  | { type: 'SET_TOOL_SCHEMAS'; payload: OllamaTool[] };
+  | { type: 'SET_TOOL_SCHEMAS'; payload: OllamaTool[] }
+  // Manus task actions
+  | { type: 'ADD_MANUS_TASK'; payload: ManusTask }
+  | { type: 'UPDATE_MANUS_TASK'; payload: ManusTask }
+  | { type: 'DELETE_MANUS_TASK'; payload: string }
+  | { type: 'SET_ACTIVE_MANUS_TASK'; payload: string | null }
+  | { type: 'SET_MANUS_TASKS'; payload: ManusTask[] };
 
 function chatReducer(state: ChatState, action: ChatAction): ChatState {
   switch (action.type) {
@@ -155,6 +168,28 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
       return { ...state, toolRegistry: action.payload };
     case 'SET_TOOL_SCHEMAS':
       return { ...state, toolSchemas: action.payload };
+    case 'ADD_MANUS_TASK': {
+      const tasks = [action.payload, ...state.manusTasks].slice(0, 20);
+      return { ...state, manusTasks: tasks };
+    }
+    case 'UPDATE_MANUS_TASK':
+      return {
+        ...state,
+        manusTasks: state.manusTasks.map(t =>
+          t.id === action.payload.id ? action.payload : t
+        ),
+      };
+    case 'DELETE_MANUS_TASK':
+      return {
+        ...state,
+        manusTasks: state.manusTasks.filter(t => t.id !== action.payload),
+        activeManusTaskId:
+          state.activeManusTaskId === action.payload ? null : state.activeManusTaskId,
+      };
+    case 'SET_ACTIVE_MANUS_TASK':
+      return { ...state, activeManusTaskId: action.payload };
+    case 'SET_MANUS_TASKS':
+      return { ...state, manusTasks: action.payload };
     default:
       return state;
   }
@@ -173,6 +208,10 @@ interface ChatContextType {
   refreshTools: () => Promise<void>;
   checkConnection: () => Promise<void>;
   activeConversation: Conversation | null;
+  // Manus task operations
+  submitManusTask: (prompt: string, model: string, files?: string[]) => Promise<string>;
+  cancelManusTask: (id: string) => Promise<void>;
+  refreshManusTask: (id: string) => Promise<void>;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -180,20 +219,23 @@ const ChatContext = createContext<ChatContextType | undefined>(undefined);
 // Storage helpers
 const STORAGE_KEY = 'ollama-chat-data';
 const SETTINGS_KEY = 'ollama-chat-settings';
+const MANUS_TASKS_KEY = 'manus-tasks';
 
-function loadFromStorage(): { conversations: Conversation[]; settings: AppSettings } {
+function loadFromStorage(): { conversations: Conversation[]; settings: AppSettings; manusTasks: ManusTask[] } {
   try {
     const convData = localStorage.getItem(STORAGE_KEY);
     const settingsData = localStorage.getItem(SETTINGS_KEY);
+    const manusData = localStorage.getItem(MANUS_TASKS_KEY);
     let storedSettings: Partial<AppSettings> = settingsData ? JSON.parse(settingsData) : {};
     // Ensure defaultModel is always glm-5 regardless of stored settings
     storedSettings.defaultModel = 'glm-5';
     return {
       conversations: convData ? JSON.parse(convData) : [],
       settings: { ...DEFAULT_SETTINGS, ...storedSettings },
+      manusTasks: manusData ? JSON.parse(manusData) : [],
     };
   } catch {
-    return { conversations: [], settings: DEFAULT_SETTINGS };
+    return { conversations: [], settings: DEFAULT_SETTINGS, manusTasks: [] };
   }
 }
 
@@ -213,6 +255,15 @@ function saveSettings(settings: AppSettings) {
   }
 }
 
+function saveManusTasks(tasks: ManusTask[]) {
+  try {
+    // Cap at 20
+    localStorage.setItem(MANUS_TASKS_KEY, JSON.stringify(tasks.slice(0, 20)));
+  } catch {
+    // Storage full or unavailable
+  }
+}
+
 // Provider
 export function ChatProvider({ children }: { children: React.ReactNode }) {
   const stored = loadFromStorage();
@@ -221,6 +272,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     conversations: stored.conversations,
     settings: stored.settings,
     activeConversationId: stored.conversations[0]?.id || null,
+    manusTasks: stored.manusTasks,
+    activeManusTaskId: stored.manusTasks[0]?.id || null,
   });
 
   const abortRef = useRef<AbortController | null>(null);
@@ -229,6 +282,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     saveConversations(state.conversations);
   }, [state.conversations]);
+
+  // Persist Manus tasks
+  useEffect(() => {
+    saveManusTasks(state.manusTasks);
+  }, [state.manusTasks]);
 
   // Persist settings and sync client configuration
   useEffect(() => {
@@ -805,6 +863,59 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }
   }, [state.activeConversationId, state.conversations, state.settings, state.toolSchemas, createConversation]);
 
+  // Submit a Manus task
+  const submitManusTask = useCallback(async (prompt: string, model: string, files?: string[]) => {
+    const tempId = `pending-${Date.now()}`;
+    const pendingTask: ManusTask = {
+      id: tempId,
+      prompt,
+      model,
+      status: 'pending',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    dispatch({ type: 'ADD_MANUS_TASK', payload: pendingTask });
+    dispatch({ type: 'SET_ACTIVE_MANUS_TASK', payload: tempId });
+
+    try {
+      const { taskId } = await createManusTask({ prompt, model, files });
+      const task: ManusTask = { ...pendingTask, id: taskId, status: 'pending' };
+      dispatch({ type: 'DELETE_MANUS_TASK', payload: tempId });
+      dispatch({ type: 'ADD_MANUS_TASK', payload: task });
+      dispatch({ type: 'SET_ACTIVE_MANUS_TASK', payload: taskId });
+      return taskId;
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to create task';
+      const failedTask: ManusTask = { ...pendingTask, status: 'failed', error: errorMsg };
+      dispatch({ type: 'UPDATE_MANUS_TASK', payload: failedTask });
+      throw err;
+    }
+  }, []);
+
+  // Cancel a Manus task
+  const cancelManusTask = useCallback(async (id: string) => {
+    try {
+      await cancelManusTaskApi(id);
+      const existing = state.manusTasks.find(t => t.id === id);
+      if (existing) {
+        dispatch({ type: 'UPDATE_MANUS_TASK', payload: { ...existing, status: 'cancelled', updatedAt: Date.now() } });
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to cancel task';
+      dispatch({ type: 'SET_ERROR', payload: msg });
+    }
+  }, [state.manusTasks]);
+
+  // Refresh a single Manus task status
+  const refreshManusTask = useCallback(async (id: string) => {
+    try {
+      const task = await getManusTaskStatus(id);
+      dispatch({ type: 'UPDATE_MANUS_TASK', payload: task });
+    } catch {
+      // Silently fail — polling will retry
+    }
+  }, []);
+
   return (
     <ChatContext.Provider
       value={{
@@ -819,6 +930,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         refreshTools,
         checkConnection,
         activeConversation,
+        submitManusTask,
+        cancelManusTask,
+        refreshManusTask,
       }}
     >
       {children}

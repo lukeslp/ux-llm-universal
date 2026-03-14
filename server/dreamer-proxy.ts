@@ -13,11 +13,13 @@ import type { Express, Request, Response } from 'express';
 const DEFAULT_MODELS: Record<string, string> = {
   anthropic: 'claude-haiku-4-5-20251001',
   xai: 'grok-3-mini',
-  openai: 'gpt-5-mini',
+  openai: 'gpt-4.1-mini',
   gemini: 'gemini-3-flash-preview',
   mistral: 'mistral-small-latest',
   cohere: 'command-r',
   perplexity: 'sonar',
+  huggingface: 'Qwen/Qwen3.5-9B',
+  manus: 'manus-1.6',
 };
 
 // --- Fallback models (used when live fetch fails) ---
@@ -25,11 +27,13 @@ const DEFAULT_MODELS: Record<string, string> = {
 const FALLBACK_MODELS: Record<string, string[]> = {
   anthropic: ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6', 'claude-opus-4-6'],
   xai: ['grok-3-mini', 'grok-3', 'grok-4-0709'],
-  openai: ['gpt-5-mini', 'gpt-5.4', 'o4-mini', 'o3'],
+  openai: ['gpt-4.1-mini', 'gpt-4.1', 'gpt-4o', 'o4-mini', 'o3'],
   gemini: ['gemini-3-flash-preview', 'gemini-3.1-pro-preview', 'gemini-3.1-flash-lite-preview', 'gemini-2.5-flash'],
   mistral: ['mistral-small-latest', 'mistral-large-latest', 'codestral-latest'],
   cohere: ['command-r', 'command-r-plus'],
   perplexity: ['sonar', 'sonar-pro'],
+  huggingface: ['Qwen/Qwen3.5-9B', 'meta-llama/Llama-3.1-8B-Instruct', 'deepseek-ai/DeepSeek-R1', 'zai-org/GLM-5'],
+  manus: ['manus-1.6', 'manus-1.6-lite', 'manus-1.6-max'],
 };
 
 const DISPLAY_NAMES: Record<string, string> = {
@@ -40,6 +44,8 @@ const DISPLAY_NAMES: Record<string, string> = {
   mistral: 'Mistral',
   cohere: 'Cohere',
   perplexity: 'Perplexity',
+  huggingface: 'HuggingFace',
+  manus: 'Manus',
 };
 
 // --- Provider API endpoints for direct tool-calling ---
@@ -50,6 +56,9 @@ const PROVIDER_ENDPOINTS: Record<string, string> = {
   xai: 'https://api.x.ai/v1/chat/completions',
   gemini: 'https://generativelanguage.googleapis.com/v1beta',
   mistral: 'https://api.mistral.ai/v1/chat/completions',
+  huggingface: 'https://router.huggingface.co/v1/chat/completions',
+  // NOTE: manus is NOT a chat/completions provider — it uses its own task-based API
+  // handled separately by manus-proxy.ts
 };
 
 // --- In-memory cache: 5-minute TTL ---
@@ -143,6 +152,20 @@ async function fetchCohereModels(key: string): Promise<string[]> {
   return models.length > 0 ? models : FALLBACK_MODELS.cohere;
 }
 
+async function fetchHuggingFaceModels(key: string): Promise<string[]> {
+  const res = await fetch('https://router.huggingface.co/v1/models', {
+    headers: { Authorization: `Bearer ${key}` },
+    signal: AbortSignal.timeout(5000),
+  });
+  if (!res.ok) return FALLBACK_MODELS.huggingface;
+  const data = await res.json() as { data: { id: string }[] };
+  const models = data.data
+    .map(m => m.id)
+    .filter(id => !id.includes('embed') && !id.includes('whisper'))
+    .sort();
+  return models.length > 0 ? models : FALLBACK_MODELS.huggingface;
+}
+
 const MODEL_FETCHERS: Record<string, (key: string) => Promise<string[]>> = {
   anthropic: fetchAnthropicModels,
   openai: fetchOpenAIModels,
@@ -150,6 +173,7 @@ const MODEL_FETCHERS: Record<string, (key: string) => Promise<string[]>> = {
   gemini: fetchGeminiModels,
   mistral: fetchMistralModels,
   cohere: fetchCohereModels,
+  huggingface: fetchHuggingFaceModels,
 };
 
 async function getModels(provider: string, key: string): Promise<string[]> {
@@ -185,6 +209,8 @@ function getProviderKeys(): Record<string, string> {
     mistral: process.env.MISTRAL_API_KEY || '',
     cohere: process.env.COHERE_API_KEY || '',
     perplexity: process.env.PERPLEXITY_API_KEY || '',
+    huggingface: process.env.HF_API_KEY || '',
+    manus: process.env.MANUS_API_KEY || '',
   };
 }
 
@@ -541,6 +567,7 @@ export function registerDreamerProxy(app: Express) {
       defaultModel: string;
       available: boolean;
       supportsTools: boolean;
+      taskBased?: boolean;
     }> = [
       { id: 'ollama', name: 'Ollama', models: [], defaultModel: 'glm-5', available: true, supportsTools: true },
     ];
@@ -557,7 +584,8 @@ export function registerDreamerProxy(app: Express) {
     for (const result of results) {
       if (result.status === 'fulfilled') {
         const { id, models } = result.value;
-        const supportsTools = ['anthropic', 'openai', 'xai', 'mistral', 'gemini'].includes(id);
+        const supportsTools = ['anthropic', 'openai', 'xai', 'mistral', 'gemini', 'huggingface'].includes(id);
+        const taskBased = id === 'manus';
         providers.push({
           id,
           name: DISPLAY_NAMES[id] || id,
@@ -565,6 +593,7 @@ export function registerDreamerProxy(app: Express) {
           defaultModel: DEFAULT_MODELS[id] || models[0] || '',
           available: true,
           supportsTools,
+          taskBased: taskBased || undefined,
         });
       }
     }
@@ -665,7 +694,7 @@ export function registerDreamerProxy(app: Express) {
     const providerKey = keys[provider];
 
     // If tools are present and provider supports direct API, use direct streaming
-    const directProviders = ['anthropic', 'openai', 'xai', 'mistral'];
+    const directProviders = ['anthropic', 'openai', 'xai', 'mistral', 'huggingface'];
     const hasTools = tools && tools.length > 0;
     const useDirectAPI = hasTools && directProviders.includes(provider) && providerKey;
 

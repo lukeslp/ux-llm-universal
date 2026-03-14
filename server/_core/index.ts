@@ -6,6 +6,7 @@ import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { registerOllamaProxy } from "../ollama-proxy";
 import { registerDreamerProxy } from "../dreamer-proxy";
+import { registerManusProxy } from "../manus-proxy";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
@@ -41,6 +42,8 @@ async function startServer() {
   registerOllamaProxy(app);
   // Multi-provider proxy via Dreamer API (keys from env only)
   registerDreamerProxy(app);
+  // Manus task-based async agent proxy
+  registerManusProxy(app);
   // tRPC API
   app.use(
     "/api/trpc",
