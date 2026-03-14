@@ -443,6 +443,21 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     abortRef.current = abortController;
 
     const isOllama = !state.settings.provider || state.settings.provider === 'ollama';
+    const isManus = state.settings.provider === 'manus';
+
+    // Manus is task-based — sendMessage is not used for Manus
+    if (isManus) {
+      dispatch({ type: 'SET_GENERATING', payload: false });
+      dispatch({
+        type: 'UPDATE_MESSAGE',
+        payload: {
+          conversationId: convId!,
+          messageId: assistantMsgId,
+          updates: { isStreaming: false, content: 'Switch to a chat provider to use chat. Manus is task-based.' },
+        },
+      });
+      return;
+    }
 
     // Get current tool schemas (builtins + remote)
     const currentTools = state.settings.enableTools ? state.toolSchemas : [];

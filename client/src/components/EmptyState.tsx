@@ -3,40 +3,42 @@
 // Design: Warm Companion — inviting, with suggested prompts
 // ============================================================
 
-import { MessageCircle, Calculator, Globe, Lightbulb } from 'lucide-react';
+import { MessageCircle, Calculator, Globe, Lightbulb, Sparkles } from 'lucide-react';
 import { useChat } from '@/contexts/ChatContext';
 import { motion } from 'framer-motion';
-
-const EMPTY_STATE_IMG = '/images/empty-state.png';
 
 const suggestions = [
   {
     icon: MessageCircle,
     label: 'Write something',
     prompt: 'Help me write a friendly email to my team about our upcoming project deadline.',
-    iconColor: 'text-blue-500',
-    bgColor: 'bg-blue-50 dark:bg-blue-950/30',
+    iconColor: 'text-white',
+    bgColor: 'bg-blue-500',
+    borderColor: 'border-l-blue-500',
   },
   {
     icon: Lightbulb,
     label: 'Explain a concept',
     prompt: 'Explain how the internet works in simple terms that a 10-year-old could understand.',
-    iconColor: 'text-amber-500',
-    bgColor: 'bg-amber-50 dark:bg-amber-950/30',
+    iconColor: 'text-white',
+    bgColor: 'bg-amber-500',
+    borderColor: 'border-l-amber-500',
   },
   {
     icon: Calculator,
     label: 'Solve a problem',
     prompt: 'I need to plan a budget for a small birthday party for 15 people. Can you help?',
-    iconColor: 'text-green-500',
-    bgColor: 'bg-green-50 dark:bg-green-950/30',
+    iconColor: 'text-white',
+    bgColor: 'bg-green-500',
+    borderColor: 'border-l-green-500',
   },
   {
     icon: Globe,
     label: 'Learn something new',
     prompt: 'What are some interesting facts about space that most people don\'t know?',
-    iconColor: 'text-purple-500',
-    bgColor: 'bg-purple-50 dark:bg-purple-950/30',
+    iconColor: 'text-white',
+    bgColor: 'bg-purple-500',
+    borderColor: 'border-l-purple-500',
   },
 ];
 
@@ -56,16 +58,13 @@ export default function EmptyState() {
         transition={{ duration: 0.5, ease: 'easeOut' }}
         className="text-center max-w-lg"
       >
-        {/* Illustration */}
-        <div className="w-32 h-32 mx-auto mb-6">
-          <img
-            src={EMPTY_STATE_IMG}
-            alt="Start chatting"
-            className="w-full h-full object-contain"
-          />
+        {/* Icon */}
+        <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-orange-400 to-rose-400 flex items-center justify-center shadow-lg">
+          <Sparkles className="w-8 h-8 text-white" />
         </div>
 
         {/* Welcome text */}
+        <p className="eyebrow mb-2">NEW CONVERSATION</p>
         <h1 className="text-2xl font-bold text-foreground mb-2">
           Hi there! How can I help?
         </h1>
@@ -85,7 +84,7 @@ export default function EmptyState() {
               transition={{ duration: 0.3, delay: 0.1 + i * 0.08 }}
               onClick={() => handleSuggestion(s.prompt)}
               disabled={!state.isConnected}
-              className="flex items-start gap-3 p-3.5 rounded-xl border border-border bg-card hover:bg-accent/50 hover:border-primary/20 transition-all text-left group disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`flex items-start gap-3 p-3.5 rounded-lg border border-border border-l-2 ${s.borderColor} bg-card hover:bg-accent/50 hover:border-primary/20 transition-all text-left group disabled:opacity-50 disabled:cursor-not-allowed`}
             >
               <div className={`w-8 h-8 rounded-lg ${s.bgColor} ${s.iconColor} flex items-center justify-center shrink-0`}>
                 <s.icon className="w-4 h-4" />
@@ -118,17 +117,9 @@ export default function EmptyState() {
                 }
               </span>
             </div>
-            {state.settings.connectionMode === 'cloud' && !state.settings.apiKey && (
+            {state.settings.connectionMode === 'cloud' && (
               <p className="text-xs text-amber-500/70 dark:text-amber-400/60 text-center">
-                Get a free API key at{' '}
-                <a
-                  href="https://ollama.com/settings/keys"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline hover:text-amber-600 dark:hover:text-amber-300"
-                >
-                  ollama.com/settings/keys
-                </a>
+                API keys are configured server-side in .env
               </p>
             )}
           </motion.div>

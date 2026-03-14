@@ -118,7 +118,7 @@ export default function Sidebar({ onClose }: Props) {
             ) : (
               Object.entries(grouped).map(([label, convs]) => (
                 <div key={label} className="mb-3">
-                  <p className="text-xs font-medium text-muted-foreground/60 px-3 py-1 uppercase tracking-wider">
+                  <p className="eyebrow px-3 py-1">
                     {label}
                   </p>
                   {convs.map(conv => (
@@ -127,8 +127,8 @@ export default function Sidebar({ onClose }: Props) {
                       className={cn(
                         'group flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-colors',
                         conv.id === state.activeConversationId
-                          ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                          : 'hover:bg-sidebar-accent/50'
+                          ? 'bg-sidebar-accent text-sidebar-accent-foreground border-l-[3px] border-l-primary'
+                          : 'hover:bg-sidebar-accent/50 border-l-[3px] border-l-transparent'
                       )}
                       onClick={() => handleSelectConversation(conv.id)}
                     >

@@ -155,8 +155,8 @@ export default function ChatInput() {
 
         {/* Drag overlay hint */}
         {dragOver && (
-          <div className="flex items-center justify-center py-3 mb-2 border-2 border-dashed border-primary/30 rounded-xl bg-primary/5">
-            <p className="text-sm text-primary/70 font-medium">Drop images here</p>
+          <div className="flex items-center justify-center py-3 mb-2 border-2 border-dashed border-primary/50 rounded-xl bg-primary/5">
+            <p className="eyebrow text-primary/70">DROP IMAGES HERE</p>
           </div>
         )}
 
@@ -195,7 +195,7 @@ export default function ChatInput() {
               }
               disabled={!state.isConnected && !isGenerating}
               rows={1}
-              className="w-full resize-none rounded-2xl border border-border bg-card px-4 py-3 text-[15px] placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full resize-none rounded-xl border border-border bg-card px-4 py-3 text-[15px] placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ maxHeight: '200px' }}
             />
           </div>

@@ -370,7 +370,7 @@ function ToolCallCard({ tc, isExecuting }: { tc: { function: { name: string; arg
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className={`${colors.bg} border ${colors.border} rounded-xl overflow-hidden`}
+      className={`${colors.bg} border ${colors.border} rounded-lg overflow-hidden`}
     >
       <div className="flex items-center gap-2.5 px-4 py-2.5">
         <div className={`w-7 h-7 rounded-lg ${colors.icon} flex items-center justify-center shrink-0`}>
@@ -488,8 +488,8 @@ export default function ChatMessage({ message, isLast }: Props) {
               className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mb-1 group"
             >
               <Sparkles className="w-3.5 h-3.5 text-primary/60 thinking-pulse" />
-              <span className="group-hover:underline">
-                {thinkingExpanded ? 'Hide' : 'Show'} thinking process
+              <span className="eyebrow group-hover:underline">
+                {thinkingExpanded ? 'HIDE' : 'SHOW'} REASONING
               </span>
               {thinkingExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
             </button>
@@ -520,7 +520,7 @@ export default function ChatMessage({ message, isLast }: Props) {
           className={`rounded-2xl px-4 py-3 ${
             isUser
               ? 'bg-blue-500 text-white rounded-br-md max-w-lg'
-              : 'bg-card border border-border shadow-sm rounded-bl-md w-full max-w-none'
+              : 'bg-card border border-border border-l-2 border-l-primary/20 shadow-sm rounded-bl-md w-full max-w-none'
           }`}
         >
           {/* User images */}

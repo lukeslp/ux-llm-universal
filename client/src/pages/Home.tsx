@@ -4,7 +4,7 @@
 // ============================================================
 
 import { useRef, useEffect, useState } from 'react';
-import { Menu, Settings, Sparkles, Plus, ChevronDown } from 'lucide-react';
+import { Menu, Settings, Sparkles, Plus, ChevronDown, PanelLeftClose, PanelLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -55,6 +55,7 @@ export default function Home() {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [showScrollDown, setShowScrollDown] = useState(false);
+  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
 
   // Detect mobile
   useEffect(() => {
@@ -103,10 +104,22 @@ export default function Home() {
 
   return (
     <div className="h-screen flex overflow-hidden bg-background">
-      {/* Desktop Sidebar */}
-      <div className="hidden lg:flex w-72 shrink-0 border-r border-border">
-        <Sidebar />
-      </div>
+      {/* Desktop Sidebar — collapsible */}
+      <AnimatePresence initial={false}>
+        {desktopSidebarOpen && !isMobile && (
+          <motion.div
+            initial={{ width: 0, opacity: 0 }}
+            animate={{ width: 288, opacity: 1 }}
+            exit={{ width: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="hidden lg:block shrink-0 border-r border-border overflow-hidden"
+          >
+            <div className="w-72 h-full">
+              <Sidebar onClose={() => setDesktopSidebarOpen(false)} />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Mobile Sidebar Sheet */}
       <Sheet
@@ -133,6 +146,17 @@ export default function Home() {
               onClick={() => dispatch({ type: 'TOGGLE_SIDEBAR' })}
             >
               <Menu className="w-5 h-5" />
+            </Button>
+
+            {/* Desktop sidebar toggle */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="hidden lg:flex h-9 w-9 p-0 rounded-full"
+              onClick={() => setDesktopSidebarOpen(prev => !prev)}
+              title={desktopSidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
+            >
+              {desktopSidebarOpen ? <PanelLeftClose className="w-4.5 h-4.5" /> : <PanelLeft className="w-4.5 h-4.5" />}
             </Button>
 
             {/* App icon */}
@@ -271,9 +295,9 @@ export default function Home() {
                 animate={{ width: 320, opacity: 1 }}
                 exit={{ width: 0, opacity: 0 }}
                 transition={{ duration: 0.2 }}
-                className="shrink-0 overflow-hidden"
+                className="shrink-0 overflow-hidden h-full"
               >
-                <div className="w-80 h-full">
+                <div className="w-80 h-full overflow-hidden">
                   <SettingsPanel />
                 </div>
               </motion.div>
