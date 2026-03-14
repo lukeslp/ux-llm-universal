@@ -29,10 +29,12 @@ import SettingsPanel from '@/components/SettingsPanel';
 import EmptyState from '@/components/EmptyState';
 import ConnectionStatus from '@/components/ConnectionStatus';
 import ManusTaskView from '@/components/manus/ManusTaskView';
+import { useTheme } from '@/contexts/ThemeContext';
 import type { AppSettings } from '@/lib/types';
 
 export default function Home() {
   const { state, dispatch, activeConversation, createConversation } = useChat();
+  const { themeName } = useTheme();
 
   const isManus = state.settings.provider === 'manus';
   const isOllama = !state.settings.provider || state.settings.provider === 'ollama';
@@ -159,9 +161,15 @@ export default function Home() {
               {desktopSidebarOpen ? <PanelLeftClose className="w-4.5 h-4.5" /> : <PanelLeft className="w-4.5 h-4.5" />}
             </Button>
 
-            {/* App icon */}
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-orange-400 to-rose-400 flex items-center justify-center shadow-sm shrink-0">
-              <Sparkles className="w-3.5 h-3.5 text-white" />
+            {/* App icon — theme-aware gradient */}
+            <div className={`w-7 h-7 flex items-center justify-center shadow-sm shrink-0 ${
+              themeName === 'hearthstone' ? 'rounded-lg bg-gradient-to-br from-amber-600 to-orange-700'
+              : themeName === 'zurich' ? 'rounded-none bg-[oklch(0.13_0_0)] dark:bg-[oklch(0.95_0_0)]'
+              : 'rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600'
+            }`}>
+              <Sparkles className={`w-3.5 h-3.5 ${
+                themeName === 'zurich' ? 'text-white dark:text-[oklch(0.13_0_0)]' : 'text-white'
+              }`} />
             </div>
 
             {/* Provider dropdown */}

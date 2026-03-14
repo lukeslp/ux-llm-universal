@@ -5,6 +5,7 @@
 
 import { MessageCircle, Calculator, Globe, Lightbulb, Sparkles } from 'lucide-react';
 import { useChat } from '@/contexts/ChatContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { motion } from 'framer-motion';
 
 const suggestions = [
@@ -44,6 +45,7 @@ const suggestions = [
 
 export default function EmptyState() {
   const { sendMessage, state } = useChat();
+  const { themeName } = useTheme();
 
   const handleSuggestion = (prompt: string) => {
     if (!state.isConnected) return;
@@ -58,9 +60,15 @@ export default function EmptyState() {
         transition={{ duration: 0.5, ease: 'easeOut' }}
         className="text-center max-w-lg"
       >
-        {/* Icon */}
-        <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-orange-400 to-rose-400 flex items-center justify-center shadow-lg">
-          <Sparkles className="w-8 h-8 text-white" />
+        {/* Icon — theme-aware gradient */}
+        <div className={`w-16 h-16 mx-auto mb-6 flex items-center justify-center shadow-lg ${
+          themeName === 'hearthstone' ? 'rounded-2xl bg-gradient-to-br from-amber-600 to-orange-700'
+          : themeName === 'zurich' ? 'rounded-none bg-[oklch(0.13_0_0)] dark:bg-[oklch(0.95_0_0)]'
+          : 'rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600'
+        }`}>
+          <Sparkles className={`w-8 h-8 ${
+            themeName === 'zurich' ? 'text-white dark:text-[oklch(0.13_0_0)]' : 'text-white'
+          }`} />
         </div>
 
         {/* Welcome text */}
@@ -84,7 +92,9 @@ export default function EmptyState() {
               transition={{ duration: 0.3, delay: 0.1 + i * 0.08 }}
               onClick={() => handleSuggestion(s.prompt)}
               disabled={!state.isConnected}
-              className={`flex items-start gap-3 p-3.5 rounded-lg border border-border border-l-2 ${s.borderColor} bg-card hover:bg-accent/50 hover:border-primary/20 transition-all text-left group disabled:opacity-50 disabled:cursor-not-allowed`}
+              className={`flex items-start gap-3 p-3.5 border border-border border-l-2 ${s.borderColor} bg-card hover:bg-accent/50 hover:border-primary/20 transition-all text-left group disabled:opacity-50 disabled:cursor-not-allowed ${
+                themeName === 'zurich' ? 'rounded-none border-l-[4px]' : 'rounded-lg'
+              }`}
             >
               <div className={`w-8 h-8 rounded-lg ${s.bgColor} ${s.iconColor} flex items-center justify-center shrink-0`}>
                 <s.icon className="w-4 h-4" />

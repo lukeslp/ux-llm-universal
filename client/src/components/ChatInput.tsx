@@ -7,10 +7,12 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { Send, Square, X, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useChat } from '@/contexts/ChatContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function ChatInput() {
   const { sendMessage, stopGeneration, state } = useChat();
+  const { themeName } = useTheme();
   const [input, setInput] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const [dragOver, setDragOver] = useState(false);
@@ -195,7 +197,9 @@ export default function ChatInput() {
               }
               disabled={!state.isConnected && !isGenerating}
               rows={1}
-              className="w-full resize-none rounded-xl border border-border bg-card px-4 py-3 text-[15px] placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`w-full resize-none border border-border bg-card px-4 py-3 text-[15px] placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                themeName === 'zurich' ? 'rounded-none border-2' : 'rounded-xl'
+              }`}
               style={{ maxHeight: '200px' }}
             />
           </div>

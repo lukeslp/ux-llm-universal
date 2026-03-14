@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useChat } from '@/contexts/ChatContext';
 import { cn } from '@/lib/utils';
+import { useTheme } from '@/contexts/ThemeContext';
 import ManusTaskHistory from '@/components/manus/ManusTaskHistory';
 
 interface Props {
@@ -16,6 +17,7 @@ interface Props {
 
 export default function Sidebar({ onClose }: Props) {
   const { state, dispatch, createConversation, deleteConversation } = useChat();
+  const { themeName } = useTheme();
   const isManus = state.settings.provider === 'manus';
 
   const handleNewChat = () => {
@@ -58,10 +60,14 @@ export default function Sidebar({ onClose }: Props) {
         <div className="flex items-center gap-2">
           <div
             className={cn(
-              'w-7 h-7 rounded-lg flex items-center justify-center',
+              'w-7 h-7 flex items-center justify-center',
               isManus
-                ? 'bg-gradient-to-br from-violet-500 to-purple-600'
-                : 'bg-gradient-to-br from-orange-400 to-rose-400',
+                ? 'rounded-lg bg-gradient-to-br from-violet-500 to-purple-600'
+                : themeName === 'hearthstone'
+                ? 'rounded-lg bg-gradient-to-br from-amber-600 to-orange-700'
+                : themeName === 'zurich'
+                ? 'rounded-none bg-[oklch(0.13_0_0)] dark:bg-[oklch(0.95_0_0)]'
+                : 'rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600',
             )}
           >
             {isManus ? (
@@ -125,10 +131,15 @@ export default function Sidebar({ onClose }: Props) {
                     <div
                       key={conv.id}
                       className={cn(
-                        'group flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-colors',
+                        'group flex items-center gap-2 px-3 py-2.5 cursor-pointer transition-colors',
+                        themeName === 'zurich' ? 'rounded-none' : 'rounded-xl',
                         conv.id === state.activeConversationId
-                          ? 'bg-sidebar-accent text-sidebar-accent-foreground border-l-[3px] border-l-primary'
-                          : 'hover:bg-sidebar-accent/50 border-l-[3px] border-l-transparent'
+                          ? `bg-sidebar-accent text-sidebar-accent-foreground border-l-[3px] border-l-primary ${
+                              themeName === 'zurich' ? 'border-l-[4px]' : ''
+                            }`
+                          : `hover:bg-sidebar-accent/50 border-l-[3px] border-l-transparent ${
+                              themeName === 'zurich' ? 'border-l-[4px]' : ''
+                            }`
                       )}
                       onClick={() => handleSelectConversation(conv.id)}
                     >

@@ -1,55 +1,68 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { THEMES, DEFAULT_THEME, type ThemeName } from "@/lib/themes";
 
-type Theme = "light" | "dark";
+type ColorMode = "light" | "dark";
 
 interface ThemeContextType {
-  theme: Theme;
-  toggleTheme?: () => void;
-  switchable: boolean;
+  theme: ColorMode;
+  themeName: ThemeName;
+  toggleTheme: () => void;
+  setThemeName: (name: ThemeName) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-interface ThemeProviderProps {
-  children: React.ReactNode;
-  defaultTheme?: Theme;
-  switchable?: boolean;
-}
-
-export function ThemeProvider({
-  children,
-  defaultTheme = "light",
-  switchable = false,
-}: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(() => {
-    if (switchable) {
-      const stored = localStorage.getItem("theme");
-      return (stored as Theme) || defaultTheme;
-    }
-    return defaultTheme;
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [themeName, setThemeNameState] = useState<ThemeName>(() => {
+    const stored = localStorage.getItem("themeName");
+    return (stored as ThemeName) || DEFAULT_THEME;
   });
 
+  const [colorMode, setColorMode] = useState<ColorMode>(() => {
+    const config = THEMES[themeName];
+    if (config?.alwaysDark) return "dark";
+    const stored = localStorage.getItem("theme");
+    return (stored as ColorMode) || "light";
+  });
+
+  // Apply theme class + dark mode to <html>
   useEffect(() => {
     const root = document.documentElement;
-    if (theme === "dark") {
+
+    // Remove all theme classes
+    root.classList.remove("theme-hearthstone", "theme-zurich", "theme-nebula");
+    root.classList.add(`theme-${themeName}`);
+
+    const config = THEMES[themeName];
+    const effectiveMode = config?.alwaysDark ? "dark" : colorMode;
+    if (effectiveMode === "dark") {
       root.classList.add("dark");
     } else {
       root.classList.remove("dark");
     }
 
-    if (switchable) {
-      localStorage.setItem("theme", theme);
-    }
-  }, [theme, switchable]);
+    localStorage.setItem("themeName", themeName);
+    localStorage.setItem("theme", colorMode);
+  }, [themeName, colorMode]);
 
-  const toggleTheme = switchable
-    ? () => {
-        setTheme(prev => (prev === "light" ? "dark" : "light"));
-      }
-    : undefined;
+  const toggleTheme = () => {
+    const config = THEMES[themeName];
+    if (config?.alwaysDark) return; // no toggle for always-dark themes
+    setColorMode(prev => (prev === "light" ? "dark" : "light"));
+  };
+
+  const setThemeName = (name: ThemeName) => {
+    setThemeNameState(name);
+    const config = THEMES[name];
+    if (config?.alwaysDark) {
+      setColorMode("dark");
+    }
+  };
+
+  const effectiveTheme: ColorMode = THEMES[themeName]?.alwaysDark ? "dark" : colorMode;
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, switchable }}>
+    <ThemeContext.Provider value={{ theme: effectiveTheme, themeName, toggleTheme, setThemeName }}>
       {children}
     </ThemeContext.Provider>
   );
