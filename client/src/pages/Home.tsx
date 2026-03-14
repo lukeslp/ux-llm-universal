@@ -1,10 +1,13 @@
 // ============================================================
-// Home — Main chat page layout
-// Design: Warm Companion — clean, responsive chat layout
+// Home — Main layout with mode switching + theme-aware header
+// Modes: chat, generate, task, research, process
 // ============================================================
 
 import { useRef, useEffect, useState } from 'react';
-import { Menu, Settings, Sparkles, Plus, ChevronDown, PanelLeftClose, PanelLeft } from 'lucide-react';
+import {
+  Menu, Settings, Sparkles, Plus, ChevronDown, PanelLeftClose, PanelLeft,
+  MessageCircle, Image as ImageIcon, ListTodo, Search, Workflow,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -21,6 +24,7 @@ import {
 } from '@/components/ui/sheet';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useChat } from '@/contexts/ChatContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import ChatMessage from '@/components/ChatMessage';
 import ChatInput from '@/components/ChatInput';
@@ -29,13 +33,25 @@ import SettingsPanel from '@/components/SettingsPanel';
 import EmptyState from '@/components/EmptyState';
 import ConnectionStatus from '@/components/ConnectionStatus';
 import ManusTaskView from '@/components/manus/ManusTaskView';
-import { useTheme } from '@/contexts/ThemeContext';
-import type { AppSettings } from '@/lib/types';
+import ImageGenPanel from '@/components/ImageGenPanel';
+import AudioPanel from '@/components/AudioPanel';
+import AltTextPanel from '@/components/AltTextPanel';
+import AgentOrchestratorView from '@/components/AgentOrchestratorView';
+import type { AppSettings, AppMode } from '@/lib/types';
+
+const MODES: { id: AppMode; label: string; icon: typeof MessageCircle }[] = [
+  { id: 'chat', label: 'Chat', icon: MessageCircle },
+  { id: 'generate', label: 'Generate', icon: ImageIcon },
+  { id: 'task', label: 'Tasks', icon: ListTodo },
+  { id: 'research', label: 'Research', icon: Search },
+  { id: 'process', label: 'Process', icon: Workflow },
+];
 
 export default function Home() {
   const { state, dispatch, activeConversation, createConversation } = useChat();
   const { themeName } = useTheme();
 
+  const currentMode = state.settings.mode || 'chat';
   const isManus = state.settings.provider === 'manus';
   const isOllama = !state.settings.provider || state.settings.provider === 'ollama';
   const currentProvider = state.providers.find(p => p.id === state.settings.provider);
@@ -53,6 +69,11 @@ export default function Home() {
     }
     dispatch({ type: 'SET_SETTINGS', payload: updates });
   };
+
+  const setMode = (mode: AppMode) => {
+    dispatch({ type: 'SET_SETTINGS', payload: { mode } });
+  };
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -104,8 +125,90 @@ export default function Home() {
   const messages = activeConversation?.messages || [];
   const hasMessages = messages.length > 0;
 
+  // Determine which main content to render based on mode
+  const renderMainContent = () => {
+    // Manus provider always shows task view
+    if (isManus) return <ManusTaskView />;
+
+    switch (currentMode) {
+      case 'generate':
+        return <ImageGenPanel />;
+      case 'task':
+        return <ManusTaskView />;
+      case 'research':
+        return <AltTextPanel />;
+      case 'process':
+        return <AgentOrchestratorView />;
+      case 'chat':
+      default:
+        return (
+          <div className="flex-1 flex flex-col min-w-0 relative">
+            {hasMessages ? (
+              <div
+                ref={chatContainerRef}
+                className="flex-1 overflow-y-auto chat-scroll"
+              >
+                <div className="py-4">
+                  {messages.map((msg, i) => (
+                    <div key={msg.id} className="group">
+                      <ChatMessage
+                        message={msg}
+                        isLast={i === messages.length - 1}
+                      />
+                    </div>
+                  ))}
+                  <div ref={messagesEndRef} />
+                </div>
+              </div>
+            ) : (
+              <EmptyState />
+            )}
+
+            {/* Scroll to bottom button */}
+            <AnimatePresence>
+              {showScrollDown && hasMessages && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  className="absolute bottom-28 left-1/2 -translate-x-1/2 z-10"
+                >
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={scrollToBottom}
+                    className={`shadow-md bg-card h-8 px-3 gap-1 ${
+                      themeName === 'zurich' ? 'rounded-none' : 'rounded-full'
+                    }`}
+                  >
+                    <ChevronDown className="w-3.5 h-3.5" />
+                    <span className="text-xs">Scroll down</span>
+                  </Button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Error banner */}
+            {state.error && (
+              <div className="px-4 py-2 bg-destructive/10 border-t border-destructive/20">
+                <p className="text-sm text-destructive text-center max-w-3xl mx-auto">
+                  {state.error}
+                </p>
+              </div>
+            )}
+
+            {/* Input */}
+            <ChatInput />
+          </div>
+        );
+    }
+  };
+
   return (
-    <div className="h-screen flex overflow-hidden bg-background">
+    <div className={`h-screen flex overflow-hidden bg-background ${
+      themeName === 'hearthstone' ? 'ambient-bg' :
+      themeName === 'nebula' ? 'ambient-bg' : ''
+    }`}>
       {/* Desktop Sidebar — collapsible */}
       <AnimatePresence initial={false}>
         {desktopSidebarOpen && !isMobile && (
@@ -135,16 +238,18 @@ export default function Home() {
         </SheetContent>
       </Sheet>
 
-      {/* Main Chat Area */}
+      {/* Main Area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Bar */}
-        <header className="flex items-center justify-between px-4 py-3 border-b border-border bg-background/80 backdrop-blur-sm shrink-0 z-10">
+        <header className={`flex items-center justify-between px-4 py-3 border-b bg-background/80 backdrop-blur-sm shrink-0 z-10 ${
+          themeName === 'zurich' ? 'border-b-[3px] border-border' : 'border-border'
+        }`}>
           <div className="flex items-center gap-2">
             {/* Mobile menu button */}
             <Button
               variant="ghost"
               size="sm"
-              className="lg:hidden h-9 w-9 p-0 rounded-full"
+              className={`lg:hidden h-9 w-9 p-0 ${themeName === 'zurich' ? 'rounded-none' : 'rounded-full'}`}
               onClick={() => dispatch({ type: 'TOGGLE_SIDEBAR' })}
             >
               <Menu className="w-5 h-5" />
@@ -154,7 +259,7 @@ export default function Home() {
             <Button
               variant="ghost"
               size="sm"
-              className="hidden lg:flex h-9 w-9 p-0 rounded-full"
+              className={`hidden lg:flex h-9 w-9 p-0 ${themeName === 'zurich' ? 'rounded-none' : 'rounded-full'}`}
               onClick={() => setDesktopSidebarOpen(prev => !prev)}
               title={desktopSidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
             >
@@ -208,12 +313,52 @@ export default function Home() {
             )}
           </div>
 
+          {/* Mode switcher — center/right area */}
+          <div className="hidden md:flex items-center gap-0.5 bg-muted/50 p-0.5 rounded-lg">
+            {MODES.map(mode => {
+              const Icon = mode.icon;
+              const isActive = currentMode === mode.id;
+              return (
+                <button
+                  key={mode.id}
+                  onClick={() => setMode(mode.id)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium transition-all ${
+                    themeName === 'zurich' ? 'rounded-none' : 'rounded-md'
+                  } ${
+                    isActive
+                      ? 'bg-card text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                  title={mode.label}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  <span className="hidden lg:inline">{mode.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
           <div className="flex items-center gap-1.5">
             {isOllama && <ConnectionStatus />}
+
+            {/* Mobile mode selector */}
+            <div className="md:hidden">
+              <Select value={currentMode} onValueChange={v => setMode(v as AppMode)}>
+                <SelectTrigger className="h-8 text-sm border-border/60 bg-transparent w-auto">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MODES.map(mode => (
+                    <SelectItem key={mode.id} value={mode.id}>{mode.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <Button
               variant="ghost"
               size="sm"
-              className="h-9 w-9 p-0 rounded-full"
+              className={`h-9 w-9 p-0 ${themeName === 'zurich' ? 'rounded-none' : 'rounded-full'}`}
               onClick={createConversation}
               title="New chat (Ctrl+N)"
             >
@@ -222,7 +367,7 @@ export default function Home() {
             <Button
               variant="ghost"
               size="sm"
-              className="h-9 w-9 p-0 rounded-full"
+              className={`h-9 w-9 p-0 ${themeName === 'zurich' ? 'rounded-none' : 'rounded-full'}`}
               onClick={() => dispatch({ type: 'TOGGLE_SETTINGS' })}
               title="Settings (Ctrl+,)"
             >
@@ -231,69 +376,9 @@ export default function Home() {
           </div>
         </header>
 
-        {/* Chat + Settings split */}
+        {/* Content + Settings split */}
         <div className="flex-1 flex min-h-0">
-          {/* Messages area — or Manus task view */}
-          {isManus ? (
-            <ManusTaskView />
-          ) : (
-            <div className="flex-1 flex flex-col min-w-0 relative">
-              {hasMessages ? (
-                <div
-                  ref={chatContainerRef}
-                  className="flex-1 overflow-y-auto chat-scroll"
-                >
-                  <div className="py-4">
-                    {messages.map((msg, i) => (
-                      <div key={msg.id} className="group">
-                        <ChatMessage
-                          message={msg}
-                          isLast={i === messages.length - 1}
-                        />
-                      </div>
-                    ))}
-                    <div ref={messagesEndRef} />
-                  </div>
-                </div>
-              ) : (
-                <EmptyState />
-              )}
-
-              {/* Scroll to bottom button */}
-              <AnimatePresence>
-                {showScrollDown && hasMessages && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    className="absolute bottom-28 left-1/2 -translate-x-1/2 z-10"
-                  >
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={scrollToBottom}
-                      className="rounded-full shadow-md bg-card h-8 px-3 gap-1"
-                    >
-                      <ChevronDown className="w-3.5 h-3.5" />
-                      <span className="text-xs">Scroll down</span>
-                    </Button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Error banner */}
-              {state.error && (
-                <div className="px-4 py-2 bg-destructive/10 border-t border-destructive/20">
-                  <p className="text-sm text-destructive text-center max-w-3xl mx-auto">
-                    {state.error}
-                  </p>
-                </div>
-              )}
-
-              {/* Input */}
-              <ChatInput />
-            </div>
-          )}
+          {renderMainContent()}
 
           {/* Settings Panel — Desktop */}
           <AnimatePresence>
