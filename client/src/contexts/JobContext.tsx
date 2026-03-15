@@ -76,10 +76,40 @@ export function useJobs() {
 
 // ── Provider ────────────────────────────────────────────────────────────────
 
+const JOBS_STORAGE_KEY = 'geepers-chat-jobs';
+
+function loadPersistedJobs(): Job[] {
+  try {
+    const raw = localStorage.getItem(JOBS_STORAGE_KEY);
+    if (!raw) return [];
+    const jobs = JSON.parse(raw) as Job[];
+    // Only restore non-terminal video jobs (they need polling resumed)
+    return jobs.filter(j => j.type === 'video' && (j.status === 'pending' || j.status === 'processing'));
+  } catch { return []; }
+}
+
+function persistJobs(jobs: Job[]) {
+  try {
+    // Only persist active video jobs (they need polling across refresh)
+    const toSave = jobs.filter(j => j.type === 'video' && (j.status === 'pending' || j.status === 'processing'));
+    if (toSave.length > 0) {
+      localStorage.setItem(JOBS_STORAGE_KEY, JSON.stringify(toSave));
+    } else {
+      localStorage.removeItem(JOBS_STORAGE_KEY);
+    }
+  } catch { /* storage full or unavailable */ }
+}
+
 export function JobProvider({ children }: { children: ReactNode }) {
-  const [jobs, setJobs] = useState<Job[]>([]);
+  const [jobs, setJobs] = useState<Job[]>(loadPersistedJobs);
   const pollTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const activePolls = useRef<Map<string, { jobId: string; prompt: string; provider?: string }>>(new Map());
+  const hasRestoredPolling = useRef(false);
+
+  // Persist active video jobs to localStorage on change
+  useEffect(() => {
+    persistJobs(jobs);
+  }, [jobs]);
 
   // Visibility-aware polling — immediately poll all active video jobs when tab becomes visible
   useEffect(() => {
@@ -234,6 +264,19 @@ export function JobProvider({ children }: { children: ReactNode }) {
     pollTimers.current.clear();
     activePolls.current.clear();
   }, []);
+
+  // Restore polling for persisted video jobs after page refresh
+  useEffect(() => {
+    if (hasRestoredPolling.current) return;
+    hasRestoredPolling.current = true;
+    const activeVideoJobs = jobs.filter(
+      (j): j is VideoJob => j.type === 'video' && (j.status === 'pending' || j.status === 'processing'),
+    );
+    for (const job of activeVideoJobs) {
+      activePolls.current.set(job.requestId, { jobId: job.id, prompt: job.prompt, provider: job.provider });
+      pollVideoStatus(job.requestId, job.id, job.prompt, job.provider);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <JobContext.Provider value={{
