@@ -61,7 +61,7 @@ interface JobContextType {
   clearJobs: (type?: JobType) => void;
   getJobsByType: (type: JobType) => Job[];
   getActiveCount: (type?: JobType) => number;
-  startVideoPolling: (requestId: string, jobId: string, prompt: string) => void;
+  startVideoPolling: (requestId: string, jobId: string, prompt: string, provider?: string) => void;
   stopVideoPolling: (requestId: string) => void;
   stopAllPolling: () => void;
 }
@@ -79,22 +79,22 @@ export function useJobs() {
 export function JobProvider({ children }: { children: ReactNode }) {
   const [jobs, setJobs] = useState<Job[]>([]);
   const pollTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
-  const activePolls = useRef<Map<string, { jobId: string; prompt: string }>>(new Map());
+  const activePolls = useRef<Map<string, { jobId: string; prompt: string; provider?: string }>>(new Map());
 
   // Visibility-aware polling — immediately poll all active video jobs when tab becomes visible
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible' && activePolls.current.size > 0) {
-        for (const [requestId, { jobId, prompt }] of Array.from(activePolls.current.entries())) {
+        for (const [requestId, { jobId, prompt, provider }] of Array.from(activePolls.current.entries())) {
           const existing = pollTimers.current.get(requestId);
           if (existing) clearTimeout(existing);
-          pollVideoStatus(requestId, jobId, prompt);
+          pollVideoStatus(requestId, jobId, prompt, provider);
         }
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, []);
+  }, [pollVideoStatus]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -152,9 +152,10 @@ export function JobProvider({ children }: { children: ReactNode }) {
 
   // ── Video Polling ─────────────────────────────────────────────────────
 
-  const pollVideoStatus = useCallback(async (requestId: string, jobId: string, prompt: string) => {
+  const pollVideoStatus = useCallback(async (requestId: string, jobId: string, prompt: string, provider?: string) => {
     try {
-      const response = await fetch(apiUrl(`/api/video/status?requestId=${encodeURIComponent(requestId)}`));
+      const providerParam = provider ? `&provider=${encodeURIComponent(provider)}` : '';
+      const response = await fetch(apiUrl(`/api/video/status?requestId=${encodeURIComponent(requestId)}${providerParam}`));
       const result = await response.json();
 
       if (!result) {
@@ -166,7 +167,7 @@ export function JobProvider({ children }: { children: ReactNode }) {
 
       if (status === 'processing' || status === 'pending') {
         const interval = document.visibilityState === 'hidden' ? 15000 : 5000;
-        scheduleNextPoll(requestId, jobId, prompt, interval);
+        scheduleNextPoll(requestId, jobId, prompt, interval, provider);
       } else if (status === 'done') {
         const videoUrl = result.video?.url as string | undefined;
         setJobs(prev => prev.map(j =>
@@ -199,24 +200,24 @@ export function JobProvider({ children }: { children: ReactNode }) {
           activePolls.current.delete(requestId);
           toast.success(`Video ready: "${prompt.slice(0, 40)}${prompt.length > 40 ? '...' : ''}"`);
         } else {
-          scheduleNextPoll(requestId, jobId, prompt, 5000);
+          scheduleNextPoll(requestId, jobId, prompt, 5000, provider);
         }
       }
     } catch (err) {
       console.warn('[JobContext] Poll error for', requestId, err);
       const interval = document.visibilityState === 'hidden' ? 30000 : 10000;
-      scheduleNextPoll(requestId, jobId, prompt, interval);
+      scheduleNextPoll(requestId, jobId, prompt, interval, provider);
     }
   }, []);
 
-  const scheduleNextPoll = useCallback((requestId: string, jobId: string, prompt: string, intervalMs: number) => {
-    const timer = setTimeout(() => pollVideoStatus(requestId, jobId, prompt), intervalMs);
+  const scheduleNextPoll = useCallback((requestId: string, jobId: string, prompt: string, intervalMs: number, provider?: string) => {
+    const timer = setTimeout(() => pollVideoStatus(requestId, jobId, prompt, provider), intervalMs);
     pollTimers.current.set(requestId, timer);
   }, [pollVideoStatus]);
 
-  const startVideoPolling = useCallback((requestId: string, jobId: string, prompt: string) => {
-    activePolls.current.set(requestId, { jobId, prompt });
-    scheduleNextPoll(requestId, jobId, prompt, 5000);
+  const startVideoPolling = useCallback((requestId: string, jobId: string, prompt: string, provider?: string) => {
+    activePolls.current.set(requestId, { jobId, prompt, provider });
+    scheduleNextPoll(requestId, jobId, prompt, 5000, provider);
   }, [scheduleNextPoll]);
 
   const stopVideoPolling = useCallback((requestId: string) => {

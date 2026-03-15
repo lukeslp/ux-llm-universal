@@ -9,6 +9,7 @@ import { ProviderProvider } from "./contexts/ProviderContext";
 import { ToolProvider } from "./contexts/ToolContext";
 import { ConversationProvider } from "./contexts/ConversationContext";
 import { JobProvider } from "./contexts/JobContext";
+import { ArtifactProvider } from "./contexts/ArtifactContext";
 import AppShell from "./components/AppShell";
 
 // Lazy-loaded pages
@@ -60,8 +61,10 @@ function App() {
               <ToolProvider>
                 <ConversationProvider>
                   <JobProvider>
-                    <Toaster />
-                    <AppRouter />
+                    <ArtifactProvider>
+                      <Toaster />
+                      <AppRouter />
+                    </ArtifactProvider>
                   </JobProvider>
                 </ConversationProvider>
               </ToolProvider>

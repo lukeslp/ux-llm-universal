@@ -88,3 +88,46 @@ export const safetyEvaluations = mysqlTable("safety_evaluations", {
 });
 
 export type SafetyEvaluation = typeof safetyEvaluations.$inferSelect;
+
+// ── Saved Prompts ───────────────────────────────────────────────
+export const savedPrompts = mysqlTable("saved_prompts", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  category: varchar("category", { length: 64 }).notNull(), // image, video, tts, edit
+  name: varchar("name", { length: 256 }).notNull(),
+  prompt: text("prompt").notNull(),
+  useCount: int("useCount").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type SavedPrompt = typeof savedPrompts.$inferSelect;
+export type InsertSavedPrompt = typeof savedPrompts.$inferInsert;
+
+// ── Usage Log ───────────────────────────────────────────────────
+export const usageLog = mysqlTable("usage_log", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId"),
+  feature: varchar("feature", { length: 64 }).notNull(), // image_gen, video_gen, tts, image_edit, compare
+  model: varchar("model", { length: 128 }),
+  promptTokens: int("promptTokens"),
+  completionTokens: int("completionTokens"),
+  itemCount: int("itemCount").default(1),
+  success: int("success").default(1).notNull(),
+  errorMessage: text("errorMessage"),
+  durationMs: int("durationMs"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type UsageLogEntry = typeof usageLog.$inferSelect;
+
+// ── Rewrite Rules (Auto-Retry Learning) ─────────────────────────
+export const rewriteRules = mysqlTable("rewrite_rules", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId"),
+  category: varchar("category", { length: 64 }).notNull(),
+  originalPrompt: text("originalPrompt").notNull(),
+  rewrittenPrompt: text("rewrittenPrompt").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type RewriteRule = typeof rewriteRules.$inferSelect;

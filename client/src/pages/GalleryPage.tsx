@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useArtifacts, ArtifactProvider, type ArtifactType } from '@/contexts/ArtifactContext';
+import { useArtifacts, type ArtifactType } from '@/contexts/ArtifactContext';
 import { MediaViewer, type MediaItem } from '@/components/MediaViewer';
 import { cn } from '@/lib/utils';
 
@@ -229,9 +229,5 @@ function GalleryContent() {
 }
 
 export default function GalleryPage() {
-  return (
-    <ArtifactProvider>
-      <GalleryContent />
-    </ArtifactProvider>
-  );
+  return <GalleryContent />;
 }

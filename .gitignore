@@ -108,3 +108,11 @@ temp/
 
 # Webdev artifacts (checkpoint zips, migrations, etc.)
 .webdev/
+
+# Scratch / reference projects
+beltalowda/
+geepers-studio/
+imagine-studio/
+
+# Screenshots
+*.png

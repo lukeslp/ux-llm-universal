@@ -6,7 +6,7 @@
 
 import { apiUrl } from './api-base';
 
-export type ProviderCapability = 'chat' | 'image_generation' | 'vision' | 'tts' | 'stt' | 'embeddings';
+export type ProviderCapability = 'chat' | 'image_generation' | 'video_generation' | 'vision' | 'tts' | 'stt' | 'embeddings';
 
 export interface Provider {
   id: string;
@@ -25,6 +25,8 @@ export interface Provider {
   ttsDefault?: string;
   sttModels?: string[];
   sttDefault?: string;
+  videoGenModels?: string[];
+  videoGenDefault?: string;
 }
 
 export interface DreamerMessage {
