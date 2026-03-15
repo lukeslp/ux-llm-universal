@@ -51,14 +51,14 @@ const DISPLAY_NAMES: Record<string, string> = {
 // --- Provider capabilities ---
 // What each provider can do beyond basic chat
 
-export type ProviderCapability = 'chat' | 'image_generation' | 'vision' | 'tts' | 'stt' | 'embeddings';
+export type ProviderCapability = 'chat' | 'image_generation' | 'video_generation' | 'vision' | 'tts' | 'stt' | 'embeddings';
 
 const PROVIDER_CAPABILITIES: Record<string, ProviderCapability[]> = {
   ollama: ['chat', 'vision'],
   anthropic: ['chat', 'vision'],
-  openai: ['chat', 'vision', 'image_generation', 'tts', 'stt', 'embeddings'],
-  xai: ['chat', 'vision', 'image_generation'],
-  gemini: ['chat', 'vision', 'tts', 'embeddings'],
+  openai: ['chat', 'vision', 'image_generation', 'video_generation', 'tts', 'stt', 'embeddings'],
+  xai: ['chat', 'vision', 'image_generation', 'video_generation', 'tts'],
+  gemini: ['chat', 'vision', 'image_generation', 'tts', 'embeddings'],
   mistral: ['chat', 'vision', 'embeddings'],
   cohere: ['chat', 'embeddings'],
   perplexity: ['chat'],
@@ -69,13 +69,13 @@ const PROVIDER_CAPABILITIES: Record<string, ProviderCapability[]> = {
 // Image generation models per provider (subset of full model list)
 const IMAGE_GEN_MODELS: Record<string, string[]> = {
   openai: ['dall-e-3', 'dall-e-2', 'gpt-image-1'],
-  xai: ['grok-2-image'],
+  xai: ['grok-imagine-image'],
   huggingface: ['black-forest-labs/FLUX.1-dev', 'black-forest-labs/FLUX.1-schnell', 'stabilityai/stable-diffusion-xl-base-1.0'],
 };
 
 const IMAGE_GEN_DEFAULTS: Record<string, string> = {
   openai: 'dall-e-3',
-  xai: 'grok-2-image',
+  xai: 'grok-imagine-image',
   huggingface: 'black-forest-labs/FLUX.1-schnell',
 };
 
@@ -100,11 +100,14 @@ const VISION_DEFAULTS: Record<string, string> = {
 // TTS models per provider
 const TTS_MODELS: Record<string, string[]> = {
   openai: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts'],
-  gemini: ['gemini-3.1-flash-lite-preview'],
+  xai: ['tts-1'],
+  gemini: ['gemini-2.5-flash-preview-tts'],
 };
 
 const TTS_DEFAULTS: Record<string, string> = {
   openai: 'tts-1',
+  xai: 'tts-1',
+  gemini: 'gemini-2.5-flash-preview-tts',
 };
 
 // STT models per provider
@@ -114,6 +117,17 @@ const STT_MODELS: Record<string, string[]> = {
 
 const STT_DEFAULTS: Record<string, string> = {
   openai: 'whisper-1',
+};
+
+// Video generation models per provider
+const VIDEO_GEN_MODELS: Record<string, string[]> = {
+  xai: ['grok-imagine-video'],
+  openai: ['sora-2', 'sora-2-pro'],
+};
+
+const VIDEO_GEN_DEFAULTS: Record<string, string> = {
+  xai: 'grok-imagine-video',
+  openai: 'sora-2',
 };
 
 // --- Provider API endpoints for direct tool-calling ---
@@ -645,6 +659,8 @@ export function registerDreamerProxy(app: Express) {
       ttsDefault?: string;
       sttModels?: string[];
       sttDefault?: string;
+      videoGenModels?: string[];
+      videoGenDefault?: string;
     }> = [
       {
         id: 'ollama',
@@ -702,6 +718,10 @@ export function registerDreamerProxy(app: Express) {
         if (capabilities.includes('stt') && STT_MODELS[id]) {
           entry.sttModels = STT_MODELS[id];
           entry.sttDefault = STT_DEFAULTS[id];
+        }
+        if (capabilities.includes('video_generation') && VIDEO_GEN_MODELS[id]) {
+          entry.videoGenModels = VIDEO_GEN_MODELS[id];
+          entry.videoGenDefault = VIDEO_GEN_DEFAULTS[id];
         }
 
         providers.push(entry);
@@ -928,7 +948,10 @@ export function registerDreamerProxy(app: Express) {
   // Gateway: POST /v1/llm/images/generate { provider, prompt, model, size }
 
   app.post('/api/image/generate', async (req: Request, res: Response) => {
-    const { prompt, provider, model, size = '1024x1024' } = req.body;
+    const {
+      prompt, provider, model, size = '1024x1024',
+      quality, style, n = 1, aspect_ratio, negative_prompt,
+    } = req.body;
 
     if (!prompt || !provider || !model) {
       res.status(400).json({ error: 'prompt, provider, and model are required' });
@@ -941,12 +964,99 @@ export function registerDreamerProxy(app: Express) {
       return;
     }
 
-    try {
-      const data = await gatewayPost('/v1/llm/images/generate', {
-        provider, prompt, model, size,
-      }) as { image_data?: string; url?: string; images?: string[] };
+    const keys = getProviderKeys();
+    const apiKey = keys[provider];
 
-      // Gateway returns image_data (base64) or url
+    try {
+      // Direct xAI call (aspect_ratio, resolution, response_format)
+      if (provider === 'xai' && apiKey) {
+        const body: Record<string, unknown> = {
+          prompt,
+          model: model || 'grok-imagine-image',
+          n: Math.min(n, 10),
+          response_format: 'url',
+        };
+        if (aspect_ratio) body.aspect_ratio = aspect_ratio;
+        if (quality && quality !== 'auto') body.resolution = quality; // client sends quality, map to resolution
+
+        const apiRes = await fetch('https://api.x.ai/v1/images/generations', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+
+        if (!apiRes.ok) {
+          const errData = await apiRes.json().catch(() => ({})) as { error?: string; message?: string };
+          throw new Error(errData.error || errData.message || `xAI image error: ${apiRes.status}`);
+        }
+
+        const data = await apiRes.json() as { data?: Array<{ url?: string; b64_json?: string; revised_prompt?: string }> };
+        const images = (data.data || []).map(d =>
+          d.url || (d.b64_json ? `data:image/png;base64,${d.b64_json}` : ''),
+        ).filter(Boolean);
+        const revisedPrompt = data.data?.[0]?.revised_prompt;
+        res.json({ images, revised_prompt: revisedPrompt });
+        return;
+      }
+
+      // Direct OpenAI call — model-aware params (gpt-image-1 vs dall-e-3 vs dall-e-2)
+      if (provider === 'openai' && apiKey) {
+        const isGptImage1 = (model || 'dall-e-3').startsWith('gpt-image-1');
+        const isDalle3 = (model || 'dall-e-3') === 'dall-e-3';
+        const body: Record<string, unknown> = {
+          prompt,
+          model: model || 'dall-e-3',
+          n: isDalle3 ? 1 : Math.min(n, isGptImage1 ? 10 : 4),
+          size: size || '1024x1024',
+        };
+        if (isGptImage1) {
+          // gpt-image-1: quality is low/medium/high, supports output_format and background
+          body.quality = quality || 'medium';
+          body.response_format = 'url';
+          const { output_format, background } = req.body;
+          if (output_format) body.output_format = output_format;
+          if (background) body.background = background;
+        } else if (isDalle3) {
+          // dall-e-3: quality is standard/hd, supports style
+          if (quality) body.quality = quality;
+          if (style) body.style = style;
+        } else {
+          // dall-e-2: basic params only
+          if (quality) body.quality = quality;
+        }
+
+        const apiRes = await fetch('https://api.openai.com/v1/images/generations', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+
+        if (!apiRes.ok) {
+          const errData = await apiRes.json().catch(() => ({})) as { error?: { message?: string } };
+          throw new Error(errData.error?.message || `OpenAI image error: ${apiRes.status}`);
+        }
+
+        const data = await apiRes.json() as { data?: Array<{ url?: string; b64_json?: string; revised_prompt?: string }> };
+        const images = (data.data || []).map(d =>
+          d.url || (d.b64_json ? `data:image/png;base64,${d.b64_json}` : ''),
+        ).filter(Boolean);
+        const revisedPrompt = data.data?.[0]?.revised_prompt;
+        res.json({ images, revised_prompt: revisedPrompt });
+        return;
+      }
+
+      // Fallback: gateway
+      const gatewayBody: Record<string, unknown> = { provider, prompt, model, size };
+      if (n > 1) gatewayBody.n = n;
+      if (quality) gatewayBody.quality = quality;
+      if (style) gatewayBody.style = style;
+      if (aspect_ratio) gatewayBody.aspect_ratio = aspect_ratio;
+      if (negative_prompt) gatewayBody.negative_prompt = negative_prompt;
+
+      const data = await gatewayPost('/v1/llm/images/generate', gatewayBody) as {
+        image_data?: string; url?: string; images?: string[]; revised_prompt?: string;
+      };
+
       const images: string[] = [];
       if (data.images) {
         images.push(...data.images);
@@ -955,9 +1065,415 @@ export function registerDreamerProxy(app: Express) {
       } else if (data.url) {
         images.push(data.url);
       }
-      res.json({ images });
+      res.json({ images, revised_prompt: data.revised_prompt });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Image generation failed';
+      res.status(500).json({ error: msg });
+    }
+  });
+
+  // ---- Video Generation ----
+  // xAI: POST https://api.x.ai/v1/videos/generations → request_id → poll
+  // OpenAI Sora: POST https://api.openai.com/v1/videos → id → poll
+
+  app.post('/api/video/generate', async (req: Request, res: Response) => {
+    const {
+      prompt, provider = 'xai', model, duration, resolution,
+      aspect_ratio, image_url, maxRetries = 0,
+    } = req.body;
+
+    if (!prompt) {
+      res.status(400).json({ error: 'prompt is required' });
+      return;
+    }
+
+    const keys = getProviderKeys();
+    const apiKey = keys[provider];
+    if (!apiKey) {
+      res.status(400).json({ error: `No API key configured for ${provider}` });
+      return;
+    }
+
+    try {
+      if (provider === 'xai') {
+        const body: Record<string, unknown> = { prompt, model: model || 'grok-imagine-video' };
+        if (duration) body.duration = duration;
+        if (resolution) body.resolution = resolution;
+        if (aspect_ratio) body.aspect_ratio = aspect_ratio;
+        if (image_url) body.image_url = image_url;
+
+        const apiRes = await fetch('https://api.x.ai/v1/videos/generations', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+
+        if (!apiRes.ok) {
+          const errData = await apiRes.json().catch(() => ({})) as { error?: string; message?: string };
+          throw new Error(errData.error || errData.message || `xAI video error: ${apiRes.status}`);
+        }
+
+        const data = await apiRes.json() as { request_id?: string };
+        res.json({ requestId: data.request_id, provider: 'xai' });
+      } else if (provider === 'openai') {
+        const { size: videoSize, seconds } = req.body;
+        const body: Record<string, unknown> = {
+          prompt,
+          model: model || 'sora-2',
+          n: 1,
+        };
+        if (seconds) body.seconds = String(seconds);
+        else if (duration) body.seconds = String(duration); // back-compat
+        if (videoSize) body.size = videoSize;
+
+        const apiRes = await fetch('https://api.openai.com/v1/videos', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+
+        if (!apiRes.ok) {
+          const errData = await apiRes.json().catch(() => ({})) as { error?: { message?: string } };
+          throw new Error(errData.error?.message || `OpenAI video error: ${apiRes.status}`);
+        }
+
+        const data = await apiRes.json() as { id?: string };
+        res.json({ requestId: data.id, provider: 'openai' });
+      } else {
+        res.status(400).json({ error: `Video generation not supported for provider: ${provider}` });
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Video generation failed';
+      res.status(500).json({ error: msg });
+    }
+  });
+
+  // ---- Video Status Polling ----
+
+  app.get('/api/video/status', async (req: Request, res: Response) => {
+    const requestId = req.query.requestId as string;
+    const provider = (req.query.provider as string) || 'xai';
+
+    if (!requestId) {
+      res.status(400).json({ error: 'requestId is required' });
+      return;
+    }
+
+    const keys = getProviderKeys();
+    const apiKey = keys[provider];
+    if (!apiKey) {
+      res.status(400).json({ error: `No API key for ${provider}` });
+      return;
+    }
+
+    try {
+      if (provider === 'xai') {
+        const apiRes = await fetch(`https://api.x.ai/v1/videos/${encodeURIComponent(requestId)}`, {
+          headers: { Authorization: `Bearer ${apiKey}` },
+        });
+
+        if (apiRes.status === 202) {
+          res.json({ status: 'pending', requestId });
+          return;
+        }
+
+        if (!apiRes.ok) {
+          const errData = await apiRes.json().catch(() => ({})) as { error?: string };
+          throw new Error(errData.error || `Status check failed: ${apiRes.status}`);
+        }
+
+        const data = await apiRes.json() as {
+          status?: string; // "pending" | "done" | "expired"
+          video?: { url?: string; duration?: number };
+          error?: string;
+        };
+
+        if (data.status === 'done' && data.video?.url) {
+          res.json({
+            status: 'done',
+            video: { url: data.video.url },
+            requestId,
+          });
+        } else if (data.status === 'expired' || data.status === 'failed' || data.error) {
+          res.json({
+            status: 'failed',
+            error: data.error || `Video ${data.status || 'failed'}`,
+            requestId,
+          });
+        } else {
+          // pending or unknown → still processing
+          res.json({ status: 'pending', requestId });
+        }
+      } else if (provider === 'openai') {
+        const apiRes = await fetch(`https://api.openai.com/v1/videos/${encodeURIComponent(requestId)}`, {
+          headers: { Authorization: `Bearer ${apiKey}` },
+        });
+
+        if (!apiRes.ok) {
+          const errData = await apiRes.json().catch(() => ({})) as { error?: { message?: string } };
+          throw new Error(errData.error?.message || `Status check failed: ${apiRes.status}`);
+        }
+
+        const data = await apiRes.json() as {
+          id?: string;
+          status?: string;
+          error?: { message?: string };
+        };
+
+        if (data.status === 'completed') {
+          // Video content available at GET /v1/videos/{id}/content/video
+          const contentUrl = `https://api.openai.com/v1/videos/${encodeURIComponent(requestId)}/content/video`;
+          // Return the content URL — client can stream directly with auth, or we proxy it
+          // For simplicity, fetch the video and return as data URL
+          try {
+            const videoRes = await fetch(contentUrl, {
+              headers: { Authorization: `Bearer ${apiKey}` },
+            });
+            if (videoRes.ok) {
+              const videoBuffer = Buffer.from(await videoRes.arrayBuffer());
+              const videoDataUrl = `data:video/mp4;base64,${videoBuffer.toString('base64')}`;
+              res.json({ status: 'done', video: { url: videoDataUrl }, requestId });
+            } else {
+              // Fallback: return the content endpoint URL directly
+              res.json({ status: 'done', video: { url: contentUrl }, requestId });
+            }
+          } catch {
+            res.json({ status: 'done', video: { url: contentUrl }, requestId });
+          }
+        } else if (data.status === 'failed') {
+          res.json({
+            status: 'failed',
+            error: data.error?.message || 'Video generation failed',
+            requestId,
+          });
+        } else {
+          // queued, in_progress → map to 'pending' for client consistency
+          res.json({ status: 'pending', requestId });
+        }
+      } else {
+        res.status(400).json({ error: `Unknown provider: ${provider}` });
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Status check failed';
+      res.status(500).json({ error: msg });
+    }
+  });
+
+  // ---- Video Edit ----
+
+  app.post('/api/video/edit', async (req: Request, res: Response) => {
+    const { prompt, video_url, provider = 'xai', resolution, aspect_ratio, duration } = req.body;
+
+    if (!prompt || !video_url) {
+      res.status(400).json({ error: 'prompt and video_url are required' });
+      return;
+    }
+
+    const keys = getProviderKeys();
+    const apiKey = keys[provider];
+    if (!apiKey) {
+      res.status(400).json({ error: `No API key for ${provider}` });
+      return;
+    }
+
+    try {
+      if (provider === 'xai') {
+        const body: Record<string, unknown> = { prompt, video_url };
+        if (resolution) body.resolution = resolution;
+        if (aspect_ratio) body.aspect_ratio = aspect_ratio;
+        if (duration) body.duration = duration;
+
+        const apiRes = await fetch('https://api.x.ai/v1/videos/edits', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+
+        if (!apiRes.ok) {
+          const errData = await apiRes.json().catch(() => ({})) as { error?: string };
+          throw new Error(errData.error || `Video edit failed: ${apiRes.status}`);
+        }
+
+        const data = await apiRes.json() as { request_id?: string };
+        res.json({ requestId: data.request_id, provider: 'xai' });
+      } else {
+        res.status(400).json({ error: `Video editing not supported for provider: ${provider}` });
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Video edit failed';
+      res.status(500).json({ error: msg });
+    }
+  });
+
+  // ---- Video Extend ----
+
+  app.post('/api/video/extend', async (req: Request, res: Response) => {
+    const { video_url, prompt, provider = 'xai' } = req.body;
+
+    if (!video_url) {
+      res.status(400).json({ error: 'video_url is required' });
+      return;
+    }
+
+    const keys = getProviderKeys();
+    const apiKey = keys[provider];
+    if (!apiKey) {
+      res.status(400).json({ error: `No API key for ${provider}` });
+      return;
+    }
+
+    try {
+      if (provider === 'xai') {
+        const body: Record<string, unknown> = { video_url };
+        if (prompt) body.prompt = prompt;
+
+        const apiRes = await fetch('https://api.x.ai/v1/videos/edits', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+
+        if (!apiRes.ok) {
+          const errData = await apiRes.json().catch(() => ({})) as { error?: string };
+          throw new Error(errData.error || `Video extend failed: ${apiRes.status}`);
+        }
+
+        const data = await apiRes.json() as { request_id?: string };
+        res.json({ requestId: data.request_id, provider: 'xai' });
+      } else {
+        res.status(400).json({ error: `Video extend not supported for provider: ${provider}` });
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Video extend failed';
+      res.status(500).json({ error: msg });
+    }
+  });
+
+  // ---- Image Edit ----
+  // xAI: POST /v1/images/edits, OpenAI: POST /v1/images/edits
+
+  app.post('/api/image/edit', async (req: Request, res: Response) => {
+    const { prompt, image_url, provider = 'xai', model, size, n = 1 } = req.body;
+
+    if (!prompt || !image_url) {
+      res.status(400).json({ error: 'prompt and image_url are required' });
+      return;
+    }
+
+    const keys = getProviderKeys();
+    const apiKey = keys[provider];
+    if (!apiKey) {
+      res.status(400).json({ error: `No API key for ${provider}` });
+      return;
+    }
+
+    try {
+      if (provider === 'xai') {
+        const apiRes = await fetch('https://api.x.ai/v1/images/edits', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt,
+            image_url,
+            model: model || 'grok-imagine-image',
+            n,
+          }),
+        });
+
+        if (!apiRes.ok) {
+          const errData = await apiRes.json().catch(() => ({})) as { error?: string };
+          throw new Error(errData.error || `Image edit failed: ${apiRes.status}`);
+        }
+
+        const data = await apiRes.json() as { data?: Array<{ url?: string; b64_json?: string }> };
+        const images = (data.data || []).map(d =>
+          d.url || (d.b64_json ? `data:image/png;base64,${d.b64_json}` : ''),
+        ).filter(Boolean);
+        res.json({ images });
+      } else if (provider === 'openai') {
+        // OpenAI image edit requires downloading image and sending as form data
+        const imageRes = await fetch(image_url);
+        const imageBlob = await imageRes.blob();
+
+        const formData = new FormData();
+        formData.append('image', imageBlob, 'source.png');
+        formData.append('prompt', prompt);
+        formData.append('model', model || 'dall-e-2');
+        formData.append('n', String(n));
+        if (size) formData.append('size', size);
+
+        const apiRes = await fetch('https://api.openai.com/v1/images/edits', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${apiKey}` },
+          body: formData,
+        });
+
+        if (!apiRes.ok) {
+          const errData = await apiRes.json().catch(() => ({})) as { error?: { message?: string } };
+          throw new Error(errData.error?.message || `Image edit failed: ${apiRes.status}`);
+        }
+
+        const data = await apiRes.json() as { data?: Array<{ url?: string; b64_json?: string }> };
+        const images = (data.data || []).map(d =>
+          d.url || (d.b64_json ? `data:image/png;base64,${d.b64_json}` : ''),
+        ).filter(Boolean);
+        res.json({ images });
+      } else if (provider === 'gemini') {
+        // Gemini image edit via generateContent with image input
+        const geminiKey = apiKey;
+        const geminiModel = model || 'gemini-3.1-flash-image-preview';
+
+        // Fetch the source image
+        const imageRes = await fetch(image_url);
+        const imageBuffer = Buffer.from(await imageRes.arrayBuffer());
+        const base64Image = imageBuffer.toString('base64');
+        const mimeType = imageRes.headers.get('content-type') || 'image/png';
+
+        const apiRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{
+                parts: [
+                  { inlineData: { mimeType, data: base64Image } },
+                  { text: prompt },
+                ],
+              }],
+              generationConfig: {
+                responseModalities: ['IMAGE', 'TEXT'],
+              },
+            }),
+          },
+        );
+
+        if (!apiRes.ok) {
+          const errData = await apiRes.json().catch(() => ({})) as { error?: { message?: string } };
+          throw new Error(errData.error?.message || `Gemini edit failed: ${apiRes.status}`);
+        }
+
+        const data = await apiRes.json() as {
+          candidates?: Array<{
+            content?: { parts?: Array<{ inlineData?: { mimeType?: string; data?: string } }> };
+          }>;
+        };
+
+        const images: string[] = [];
+        for (const candidate of data.candidates || []) {
+          for (const part of candidate.content?.parts || []) {
+            if (part.inlineData?.data) {
+              const mime = part.inlineData.mimeType || 'image/png';
+              images.push(`data:${mime};base64,${part.inlineData.data}`);
+            }
+          }
+        }
+        res.json({ images });
+      } else {
+        res.status(400).json({ error: `Image editing not supported for provider: ${provider}` });
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Image edit failed';
       res.status(500).json({ error: msg });
     }
   });
@@ -990,22 +1506,149 @@ export function registerDreamerProxy(app: Express) {
   // Gateway: POST /v1/llm/speech { text, provider, voice, model }
 
   app.post('/api/tts/generate', async (req: Request, res: Response) => {
-    const { text, provider = 'openai', voice = 'alloy', model = 'tts-1' } = req.body;
+    const {
+      text, provider = 'openai', voice = 'alloy', model = 'tts-1',
+      speed, codec, sample_rate, bit_rate,
+    } = req.body;
 
     if (!text) {
       res.status(400).json({ error: 'text is required' });
       return;
     }
 
-    try {
-      const data = await gatewayPost('/v1/llm/speech', {
-        text, provider, voice, model,
-      }) as { audio_data?: string };
+    const keys = getProviderKeys();
 
-      if (data.audio_data) {
-        res.json({ audioUrl: `data:audio/mp3;base64,${data.audio_data}` });
+    try {
+      if (provider === 'xai' && keys.xai) {
+        // Direct xAI TTS call — uses voice_id, language, output_format object
+        const { language = 'en' } = req.body;
+        const body: Record<string, unknown> = {
+          text,
+          voice_id: voice || 'eve',
+          language,
+        };
+        if (codec || sample_rate || bit_rate) {
+          const outputFormat: Record<string, unknown> = {};
+          if (codec) outputFormat.codec = codec;
+          if (sample_rate) outputFormat.sample_rate = sample_rate;
+          if (bit_rate) outputFormat.bit_rate = bit_rate;
+          body.output_format = outputFormat;
+        }
+
+        const apiRes = await fetch('https://api.x.ai/v1/tts', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${keys.xai}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+
+        if (!apiRes.ok) {
+          const errData = await apiRes.json().catch(() => ({})) as { error?: string };
+          throw new Error(errData.error || `xAI TTS error: ${apiRes.status}`);
+        }
+
+        const audioBuffer = Buffer.from(await apiRes.arrayBuffer());
+        const ext = codec === 'opus' ? 'opus' : codec === 'flac' ? 'flac' : codec === 'wav' ? 'wav' : 'mp3';
+        const mimeType = ext === 'opus' ? 'audio/ogg' : ext === 'flac' ? 'audio/flac' : ext === 'wav' ? 'audio/wav' : 'audio/mpeg';
+        res.json({ audioUrl: `data:${mimeType};base64,${audioBuffer.toString('base64')}`, codec: ext });
+      } else if (provider === 'openai' && keys.openai) {
+        // Direct OpenAI TTS call
+        const body: Record<string, unknown> = {
+          model: model || 'tts-1',
+          input: text,
+          voice: voice || 'alloy',
+        };
+        if (speed) body.speed = speed;
+
+        const apiRes = await fetch('https://api.openai.com/v1/audio/speech', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${keys.openai}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(body),
+        });
+
+        if (!apiRes.ok) {
+          const errData = await apiRes.json().catch(() => ({})) as { error?: { message?: string } };
+          throw new Error(errData.error?.message || `OpenAI TTS error: ${apiRes.status}`);
+        }
+
+        const audioBuffer = Buffer.from(await apiRes.arrayBuffer());
+        res.json({ audioUrl: `data:audio/mpeg;base64,${audioBuffer.toString('base64')}`, codec: 'mp3' });
+      } else if (provider === 'gemini' && keys.gemini) {
+        // Direct Gemini TTS via generateContent with speechConfig
+        const ttsModel = model || 'gemini-2.5-flash-preview-tts';
+        const apiRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${ttsModel}:generateContent?key=${keys.gemini}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text }] }],
+              generationConfig: {
+                responseModalities: ['AUDIO'],
+                speechConfig: {
+                  voiceConfig: {
+                    prebuiltVoiceConfig: { voiceName: voice || 'Kore' },
+                  },
+                },
+              },
+            }),
+          },
+        );
+
+        if (!apiRes.ok) {
+          const errData = await apiRes.json().catch(() => ({})) as { error?: { message?: string } };
+          throw new Error(errData.error?.message || `Gemini TTS error: ${apiRes.status}`);
+        }
+
+        const data = await apiRes.json() as {
+          candidates?: Array<{
+            content?: { parts?: Array<{ inlineData?: { data?: string; mimeType?: string } }> };
+          }>;
+        };
+
+        const audioPart = data.candidates?.[0]?.content?.parts?.find(p => p.inlineData?.data);
+        if (!audioPart?.inlineData?.data) {
+          throw new Error('No audio returned from Gemini');
+        }
+
+        // Gemini returns PCM 24kHz mono 16-bit — prepend WAV header
+        const pcmBase64 = audioPart.inlineData.data;
+        const pcmBuffer = Buffer.from(pcmBase64, 'base64');
+        const wavHeader = Buffer.alloc(44);
+        const sampleRateHz = 24000;
+        const bitsPerSample = 16;
+        const numChannels = 1;
+        const byteRate = sampleRateHz * numChannels * (bitsPerSample / 8);
+        const blockAlign = numChannels * (bitsPerSample / 8);
+        wavHeader.write('RIFF', 0);
+        wavHeader.writeUInt32LE(36 + pcmBuffer.length, 4);
+        wavHeader.write('WAVE', 8);
+        wavHeader.write('fmt ', 12);
+        wavHeader.writeUInt32LE(16, 16);
+        wavHeader.writeUInt16LE(1, 20); // PCM
+        wavHeader.writeUInt16LE(numChannels, 22);
+        wavHeader.writeUInt32LE(sampleRateHz, 24);
+        wavHeader.writeUInt32LE(byteRate, 28);
+        wavHeader.writeUInt16LE(blockAlign, 30);
+        wavHeader.writeUInt16LE(bitsPerSample, 32);
+        wavHeader.write('data', 36);
+        wavHeader.writeUInt32LE(pcmBuffer.length, 40);
+        const wavBuffer = Buffer.concat([wavHeader, pcmBuffer]);
+
+        res.json({ audioUrl: `data:audio/wav;base64,${wavBuffer.toString('base64')}`, codec: 'wav' });
       } else {
-        res.status(500).json({ error: 'No audio generated' });
+        // Fallback: gateway
+        const data = await gatewayPost('/v1/llm/speech', {
+          text, provider, voice, model,
+        }) as { audio_data?: string };
+
+        if (data.audio_data) {
+          res.json({ audioUrl: `data:audio/mp3;base64,${data.audio_data}` });
+        } else {
+          res.status(500).json({ error: 'No audio generated' });
+        }
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'TTS failed';
@@ -1054,20 +1697,83 @@ export function registerDreamerProxy(app: Express) {
 
   // ---- Available Voices (for TTS UI) ----
 
-  app.get('/api/tts/voices', (_req: Request, res: Response) => {
-    res.json({
-      providers: {
-        openai: {
-          voices: ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'],
-          defaultVoice: 'alloy',
-          models: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts'],
-        },
-        elevenlabs: {
-          voices: ['rachel', 'drew', 'clyde', 'paul', 'domi', 'dave', 'fin', 'bella', 'antoni', 'elli', 'josh', 'arnold', 'adam', 'sam'],
-          defaultVoice: 'rachel',
-          models: [],
-        },
+  app.get('/api/tts/voices', async (_req: Request, res: Response) => {
+    const providers: Record<string, {
+      voices: Array<string | { id: string; name: string }>;
+      defaultVoice: string;
+      models: string[];
+      supportsCodec?: boolean;
+      supportsSpeechTags?: boolean;
+      supportsSpeed?: boolean;
+    }> = {
+      openai: {
+        voices: ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'],
+        defaultVoice: 'alloy',
+        models: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts'],
+        supportsSpeed: true,
       },
-    });
+      xai: {
+        voices: [],
+        defaultVoice: 'eve',
+        models: [],
+        supportsCodec: true,
+        supportsSpeechTags: true,
+      },
+    };
+
+    // Try to fetch live xAI voices
+    const keys = getProviderKeys();
+    if (keys.xai) {
+      try {
+        const apiRes = await fetch('https://api.x.ai/v1/tts/voices', {
+          headers: { Authorization: `Bearer ${keys.xai}` },
+          signal: AbortSignal.timeout(5000),
+        });
+        if (apiRes.ok) {
+          const data = await apiRes.json() as { voices?: Array<{ voice_id: string; name: string }> };
+          if (data.voices?.length) {
+            providers.xai.voices = data.voices.map(v => ({ id: v.voice_id, name: v.name }));
+            providers.xai.defaultVoice = data.voices[0].voice_id;
+          }
+        }
+      } catch {
+        // Fallback to known xAI voices
+        providers.xai.voices = [
+          { id: 'eve', name: 'Eve (energetic)' },
+          { id: 'ara', name: 'Ara (warm)' },
+          { id: 'rex', name: 'Rex (confident)' },
+          { id: 'sal', name: 'Sal (smooth)' },
+          { id: 'leo', name: 'Leo (authoritative)' },
+        ];
+      }
+    }
+
+    if (!providers.xai.voices.length) {
+      providers.xai.voices = [
+        { id: 'eve', name: 'Eve (energetic)' },
+        { id: 'ara', name: 'Ara (warm)' },
+        { id: 'rex', name: 'Rex (confident)' },
+        { id: 'sal', name: 'Sal (smooth)' },
+        { id: 'leo', name: 'Leo (authoritative)' },
+      ];
+    }
+
+    // Add Gemini TTS voices if key available
+    if (keys.gemini) {
+      providers.gemini = {
+        voices: [
+          'Zephyr', 'Puck', 'Charon', 'Kore', 'Fenrir',
+          'Leda', 'Orus', 'Aoede', 'Callirrhoe', 'Autonoe',
+          'Enceladus', 'Iapetus', 'Umbriel', 'Algieba', 'Despina',
+          'Erinome', 'Gacrux', 'Achird', 'Zubenelgenubi', 'Pulcherrima',
+          'Vindemiatrix', 'Sadachbia', 'Sadaltager', 'Sulafat', 'Laomedeia',
+          'Achernar', 'Rasalgethi', 'Sargas', 'Schedar', 'Shaula',
+        ],
+        defaultVoice: 'Kore',
+        models: ['gemini-2.5-flash-preview-tts'],
+      };
+    }
+
+    res.json({ providers });
   });
 }
