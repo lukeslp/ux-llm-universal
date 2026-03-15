@@ -950,7 +950,7 @@ export function registerDreamerProxy(app: Express) {
   app.post('/api/image/generate', async (req: Request, res: Response) => {
     const {
       prompt, provider, model, size = '1024x1024',
-      quality, style, n = 1, aspect_ratio, negative_prompt,
+      quality, style, n = 1, aspect_ratio, negative_prompt, seed,
     } = req.body;
 
     if (!prompt || !provider || !model) {
@@ -978,6 +978,7 @@ export function registerDreamerProxy(app: Express) {
         };
         if (aspect_ratio) body.aspect_ratio = aspect_ratio;
         if (quality && quality !== 'auto') body.resolution = quality; // client sends quality, map to resolution
+        if (seed != null) body.seed = seed;
 
         const apiRes = await fetch('https://api.x.ai/v1/images/generations', {
           method: 'POST',
@@ -1024,6 +1025,7 @@ export function registerDreamerProxy(app: Express) {
           // dall-e-2: basic params only
           if (quality) body.quality = quality;
         }
+        if (seed != null) body.seed = seed;
 
         const apiRes = await fetch('https://api.openai.com/v1/images/generations', {
           method: 'POST',
@@ -1052,6 +1054,7 @@ export function registerDreamerProxy(app: Express) {
       if (style) gatewayBody.style = style;
       if (aspect_ratio) gatewayBody.aspect_ratio = aspect_ratio;
       if (negative_prompt) gatewayBody.negative_prompt = negative_prompt;
+      if (seed != null) gatewayBody.seed = seed;
 
       const data = await gatewayPost('/v1/llm/images/generate', gatewayBody) as {
         image_data?: string; url?: string; images?: string[]; revised_prompt?: string;

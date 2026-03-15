@@ -8,7 +8,7 @@
 import { useState, useMemo, useRef, useCallback } from 'react';
 import {
   Image as ImageIcon, Loader2, Sparkles, AlertTriangle, Download,
-  Star, Trash2, StopCircle, Archive, Pencil,
+  Star, Trash2, StopCircle, Archive, Pencil, Shuffle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -127,6 +127,10 @@ export default function ImageGenPanel() {
   const [geminiAspectRatio, setGeminiAspectRatio] = useState('1:1');
   const [geminiNegativePrompt, setGeminiNegativePrompt] = useState('');
 
+  // Seed (cross-provider, optional)
+  const [seed, setSeed] = useState<string>('');
+  const randomizeSeed = () => setSeed(String(Math.floor(Math.random() * 2147483647)));
+
   // Filter to providers that have image_generation capability
   const imageProviders = useMemo(
     () => providers.filter((p: any) => p.capabilities?.includes('image_generation') && p.imageGenModels?.length),
@@ -198,6 +202,9 @@ export default function ImageGenPanel() {
         if (geminiNegativePrompt) body.negative_prompt = geminiNegativePrompt;
         body.n = batchSize;
       }
+
+      // Seed — supported by most providers
+      if (seed) body.seed = Number(seed);
 
       const jobId = `img-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
@@ -499,6 +506,40 @@ export default function ImageGenPanel() {
               className="w-full resize-none border border-border bg-card px-3 py-2 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all rounded-lg"
             />
             <p className="text-[10px] text-muted-foreground/40">Ctrl+Enter to generate</p>
+          </div>
+
+          {/* Seed */}
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-medium text-muted-foreground">Seed (optional)</label>
+            <div className="flex items-center gap-1.5">
+              <Input
+                value={seed}
+                onChange={e => setSeed(e.target.value.replace(/\D/g, ''))}
+                placeholder="Random"
+                className="h-8 text-xs tabular-nums flex-1"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 w-8 p-0 shrink-0"
+                onClick={randomizeSeed}
+                title="Random seed"
+              >
+                <Shuffle className="w-3.5 h-3.5" />
+              </Button>
+              {seed && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 text-xs text-muted-foreground"
+                  onClick={() => setSeed('')}
+                >
+                  Clear
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* Generate button */}

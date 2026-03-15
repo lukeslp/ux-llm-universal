@@ -75,6 +75,9 @@ export default function VideoGenPanel() {
   const [soraSize, setSoraSize] = useState<string>('1920x1080');
   const [soraDuration, setSoraDuration] = useState(10);
 
+  // Bulk generation
+  const [quantity, setQuantity] = useState(1);
+
   const videoJobs = getJobsByType('video') as VideoJob[];
 
   const handleProviderChange = (id: string) => {
@@ -88,63 +91,73 @@ export default function VideoGenPanel() {
     setIsSubmitting(true);
     setError(null);
 
-    const jobId = uuidv4();
+    const p = prompt.trim();
+    const errors: string[] = [];
 
-    try {
-      const body: Record<string, unknown> = {
-        prompt: prompt.trim(),
-        provider: selectedProvider,
-        model: selectedModel || undefined,
-      };
+    // Fire all requests in parallel for bulk generation
+    const promises = Array.from({ length: quantity }, async (_, i) => {
+      const jobId = uuidv4();
 
-      if (selectedProvider === 'xai') {
-        body.duration = duration;
-        if (resolution !== 'auto') body.resolution = resolution;
-        body.aspect_ratio = aspectRatio;
-      } else if (selectedProvider === 'openai') {
-        body.seconds = String(soraDuration);
-        body.size = soraSize;
+      try {
+        const body: Record<string, unknown> = {
+          prompt: p,
+          provider: selectedProvider,
+          model: selectedModel || undefined,
+        };
+
+        if (selectedProvider === 'xai') {
+          body.duration = duration;
+          if (resolution !== 'auto') body.resolution = resolution;
+          body.aspect_ratio = aspectRatio;
+        } else if (selectedProvider === 'openai') {
+          body.seconds = String(soraDuration);
+          body.size = soraSize;
+        }
+
+        const res = await fetch(apiUrl('/api/video/generate'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({ error: res.statusText }));
+          throw new Error(data.error || `Generation failed (${res.status})`);
+        }
+
+        const data = await res.json();
+        const requestId = data.requestId;
+
+        if (!requestId) throw new Error('No request ID returned');
+
+        const job: VideoJob = {
+          id: jobId,
+          type: 'video',
+          status: 'processing',
+          prompt: quantity > 1 ? `${p} (${i + 1}/${quantity})` : p,
+          provider: selectedProvider,
+          model: selectedModel,
+          requestId,
+          startedAt: Date.now(),
+        };
+        addJob(job);
+        startVideoPolling(requestId, jobId, p, selectedProvider);
+      } catch (err) {
+        errors.push(err instanceof Error ? err.message : 'Generation failed');
       }
+    });
 
-      const res = await fetch(apiUrl('/api/video/generate'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
+    await Promise.allSettled(promises);
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({ error: res.statusText }));
-        throw new Error(data.error || `Generation failed (${res.status})`);
-      }
-
-      const data = await res.json();
-      const requestId = data.requestId;
-
-      if (!requestId) throw new Error('No request ID returned');
-
-      const job: VideoJob = {
-        id: jobId,
-        type: 'video',
-        status: 'processing',
-        prompt: prompt.trim(),
-        provider: selectedProvider,
-        model: selectedModel,
-        requestId,
-        startedAt: Date.now(),
-      };
-      addJob(job);
-      startVideoPolling(requestId, jobId, prompt.trim(), selectedProvider);
-      setPrompt('');
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Generation failed';
-      setError(msg);
-    } finally {
-      setIsSubmitting(false);
+    if (errors.length > 0) {
+      setError(errors.length === quantity ? errors[0] : `${errors.length}/${quantity} failed: ${errors[0]}`);
     }
+    setPrompt('');
+    setIsSubmitting(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !isSubmitting) {
       e.preventDefault();
       handleGenerate();
     }
@@ -383,6 +396,18 @@ export default function VideoGenPanel() {
                   </SelectContent>
                 </Select>
               )}
+
+              {/* Quantity */}
+              <Select value={String(quantity)} onValueChange={v => setQuantity(Number(v))}>
+                <SelectTrigger className="h-7 text-xs border-border/60 bg-transparent w-auto min-w-[50px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[1, 2, 3, 4, 5].map(q => (
+                    <SelectItem key={q} value={String(q)}>{q}x</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Prompt input */}
