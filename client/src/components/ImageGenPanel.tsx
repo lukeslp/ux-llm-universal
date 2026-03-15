@@ -136,7 +136,7 @@ export default function ImageGenPanel() {
               <p className="eyebrow mb-2">IMAGE GENERATION</p>
               <p className="text-sm">Describe an image to generate it</p>
               <p className="text-xs text-muted-foreground/50 mt-1">
-                Using {currentProvider?.name || 'provider'} — {selectedModel}
+                Using {currentProvider?.name || 'provider'}, {selectedModel}
               </p>
             </div>
           </div>

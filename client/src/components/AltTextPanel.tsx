@@ -26,7 +26,7 @@ const VISION_TASKS: { id: VisionTask; label: string; prompt: string }[] = [
   {
     id: 'describe',
     label: 'Describe',
-    prompt: 'Describe this image in rich detail — subject, composition, colors, lighting, mood, and any notable elements. Be thorough but organized.',
+    prompt: 'Describe this image in rich detail: subject, composition, colors, lighting, mood, and any notable elements. Be thorough but organized.',
   },
   {
     id: 'analyze',

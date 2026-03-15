@@ -312,7 +312,7 @@ export default function SettingsPanel() {
                           <p className="text-sm font-semibold text-violet-700 dark:text-violet-300">Manus Task Mode</p>
                         </div>
                         <p className="text-xs text-violet-600/70 dark:text-violet-400/70 leading-relaxed">
-                          Manus is an async task agent, not a chat API. Submit a project description and it will research, plan, and execute — returning structured results.
+                          Manus is an async task agent, not a chat API. Submit a project description and it will research, plan, and execute, returning structured results.
                         </p>
                         <p className="text-xs text-violet-600/50 dark:text-violet-400/50 mt-2">
                           Generation settings (temperature, tokens, tools, streaming) do not apply to Manus tasks.
@@ -363,7 +363,7 @@ export default function SettingsPanel() {
                       ? isConnected
                         ? providerModels.length > 0
                           ? 'Select from your installed Ollama models'
-                          : 'No models found — type a model name'
+                          : 'No models found. Type a model name.'
                         : 'Connect to Ollama to see your models'
                       : `${currentProvider?.name || 'Provider'} models`
                     }

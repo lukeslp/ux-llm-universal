@@ -114,8 +114,8 @@ export default function EmptyState() {
               <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
               <span className="font-medium">
                 {state.settings.connectionMode === 'cloud'
-                  ? 'Not connected — add your API key in Settings'
-                  : 'Not connected to Ollama — check Settings'
+                  ? 'Not connected. Add your API key in Settings.'
+                  : 'Not connected to Ollama. Check Settings.'
                 }
               </span>
             </div>
