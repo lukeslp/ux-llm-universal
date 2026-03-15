@@ -3,7 +3,7 @@
 // Supports polling via JobContext, duration/resolution/aspect controls
 // ============================================================
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Video, Loader2, Sparkles, AlertTriangle, Download, Play, Clock, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -27,12 +27,12 @@ const SORA_SIZES = ['1280x720', '720x1280', '1920x1080', '1080x1920'] as const;
 function ElapsedTimer({ startTime }: { startTime: number }) {
   const [elapsed, setElapsed] = useState(0);
 
-  useState(() => {
+  useEffect(() => {
     const interval = setInterval(() => {
       setElapsed(Math.floor((Date.now() - startTime) / 1000));
     }, 1000);
     return () => clearInterval(interval);
-  });
+  }, [startTime]);
 
   const mins = Math.floor(elapsed / 60);
   const secs = elapsed % 60;
@@ -110,7 +110,7 @@ export default function VideoGenPanel() {
           if (resolution !== 'auto') body.resolution = resolution;
           body.aspect_ratio = aspectRatio;
         } else if (selectedProvider === 'openai') {
-          body.seconds = String(soraDuration);
+          body.seconds = soraDuration;
           body.size = soraSize;
         }
 
