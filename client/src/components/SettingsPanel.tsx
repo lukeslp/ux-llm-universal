@@ -148,14 +148,15 @@ export default function SettingsPanel() {
                   <Server className="w-4 h-4 text-primary" />
                   <span className="font-semibold text-sm">Provider</span>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
+                <div
+                  role="button"
+                  tabIndex={0}
                   onClick={e => { e.stopPropagation(); refreshProviders(); }}
-                  className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground ml-auto mr-2"
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); refreshProviders(); } }}
+                  className="inline-flex items-center justify-center h-6 w-6 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent ml-auto mr-2 cursor-pointer"
                 >
                   <RefreshCw className="w-3 h-3" />
-                </Button>
+                </div>
               </AccordionTrigger>
               <AccordionContent>
                 <div className="pt-2 pb-2">
