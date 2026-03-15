@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useArtifacts } from '@/contexts/ArtifactContext';
 import { apiUrl } from '@/lib/api-base';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -68,6 +69,7 @@ const LANGUAGES = [
 
 export default function TTSPanel() {
   const { themeName } = useTheme();
+  const { saveArtifact } = useArtifacts();
   const [text, setText] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedAudio, setGeneratedAudio] = useState<GeneratedAudio[]>([]);
@@ -175,6 +177,16 @@ export default function TTSPanel() {
         timestamp: Date.now(),
       };
       setGeneratedAudio(prev => [newAudio, ...prev]);
+
+      // Persist to artifacts for gallery
+      saveArtifact({
+        type: 'audio',
+        url: data.audioUrl,
+        prompt: textToGenerate.trim().slice(0, 200),
+        provider: selectedProvider,
+        metadata: { voice: selectedVoice, codec: data.codec },
+      });
+
       if (!inputText) setText('');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'TTS failed';

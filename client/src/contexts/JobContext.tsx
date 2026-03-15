@@ -53,6 +53,8 @@ export type Job = ImageJob | VideoJob | TTSJob | ResearchJob;
 
 // ── Context ─────────────────────────────────────────────────────────────────
 
+type JobCompleteHandler = (job: Job) => void;
+
 interface JobContextType {
   jobs: Job[];
   addJob: (job: Job) => void;
@@ -64,6 +66,7 @@ interface JobContextType {
   startVideoPolling: (requestId: string, jobId: string, prompt: string, provider?: string) => void;
   stopVideoPolling: (requestId: string) => void;
   stopAllPolling: () => void;
+  onJobComplete: (handler: JobCompleteHandler) => () => void;
 }
 
 const JobContext = createContext<JobContextType | null>(null);
@@ -105,6 +108,18 @@ export function JobProvider({ children }: { children: ReactNode }) {
   const pollTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const activePolls = useRef<Map<string, { jobId: string; prompt: string; provider?: string }>>(new Map());
   const hasRestoredPolling = useRef(false);
+  const completeHandlers = useRef<Set<JobCompleteHandler>>(new Set());
+
+  const onJobComplete = useCallback((handler: JobCompleteHandler) => {
+    completeHandlers.current.add(handler);
+    return () => { completeHandlers.current.delete(handler); };
+  }, []);
+
+  const fireComplete = useCallback((job: Job) => {
+    for (const handler of completeHandlers.current) {
+      try { handler(job); } catch { /* handler errors are non-critical */ }
+    }
+  }, []);
 
   // Persist active video jobs to localStorage on change
   useEffect(() => {
@@ -195,19 +210,27 @@ export function JobProvider({ children }: { children: ReactNode }) {
 
       const status = result.status as string | undefined;
 
+      const markDone = (videoUrl: string | undefined) => {
+        setJobs(prev => {
+          const job = prev.find(j => j.id === jobId);
+          if (job) {
+            const completed = { ...job, status: 'done' as const, videoUrl, completedAt: Date.now() } as VideoJob;
+            fireComplete(completed);
+          }
+          return prev.map(j =>
+            j.id === jobId ? { ...j, status: 'done' as const, videoUrl, completedAt: Date.now() } : j,
+          );
+        });
+        pollTimers.current.delete(requestId);
+        activePolls.current.delete(requestId);
+        toast.success(`Video ready: "${prompt.slice(0, 40)}${prompt.length > 40 ? '...' : ''}"`);
+      };
+
       if (status === 'processing' || status === 'pending') {
         const interval = document.visibilityState === 'hidden' ? 15000 : 5000;
         scheduleNextPoll(requestId, jobId, prompt, interval, provider);
       } else if (status === 'done') {
-        const videoUrl = result.video?.url as string | undefined;
-        setJobs(prev => prev.map(j =>
-          j.id === jobId
-            ? { ...j, status: 'done' as const, videoUrl, completedAt: Date.now() }
-            : j
-        ));
-        pollTimers.current.delete(requestId);
-        activePolls.current.delete(requestId);
-        toast.success(`Video ready: "${prompt.slice(0, 40)}${prompt.length > 40 ? '...' : ''}"`);
+        markDone(result.video?.url as string | undefined);
       } else if (status === 'failed' || status === 'error' || status === 'expired') {
         const errorMsg = (result.error as string) || `Video ${status}`;
         setJobs(prev => prev.map(j =>
@@ -221,14 +244,7 @@ export function JobProvider({ children }: { children: ReactNode }) {
       } else {
         const videoUrl = result.video?.url as string | undefined;
         if (videoUrl) {
-          setJobs(prev => prev.map(j =>
-            j.id === jobId
-              ? { ...j, status: 'done' as const, videoUrl, completedAt: Date.now() }
-              : j
-          ));
-          pollTimers.current.delete(requestId);
-          activePolls.current.delete(requestId);
-          toast.success(`Video ready: "${prompt.slice(0, 40)}${prompt.length > 40 ? '...' : ''}"`);
+          markDone(videoUrl);
         } else {
           scheduleNextPoll(requestId, jobId, prompt, 5000, provider);
         }
@@ -290,6 +306,7 @@ export function JobProvider({ children }: { children: ReactNode }) {
       startVideoPolling,
       stopVideoPolling,
       stopAllPolling,
+      onJobComplete,
     }}>
       {children}
     </JobContext.Provider>

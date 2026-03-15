@@ -12,7 +12,8 @@ import {
 import { Slider } from '@/components/ui/slider';
 import { useProviders } from '@/contexts/ProviderContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useJobs, type VideoJob } from '@/contexts/JobContext';
+import { useJobs, type VideoJob, type Job } from '@/contexts/JobContext';
+import { useArtifacts } from '@/contexts/ArtifactContext';
 import { apiUrl } from '@/lib/api-base';
 import { motion, AnimatePresence } from 'framer-motion';
 import { v4 as uuidv4 } from 'uuid';
@@ -46,8 +47,27 @@ function ElapsedTimer({ startTime }: { startTime: number }) {
 export default function VideoGenPanel() {
   const { themeName } = useTheme();
   const { providers } = useProviders();
-  const { addJob, updateJob, startVideoPolling, getJobsByType } = useJobs();
+  const { addJob, updateJob, startVideoPolling, getJobsByType, onJobComplete } = useJobs();
+  const { saveArtifact } = useArtifacts();
   const [prompt, setPrompt] = useState('');
+
+  // Save completed video jobs as artifacts for gallery persistence
+  useEffect(() => {
+    return onJobComplete((job: Job) => {
+      if (job.type === 'video' && job.status === 'done') {
+        const vJob = job as VideoJob;
+        if (vJob.videoUrl) {
+          saveArtifact({
+            type: 'video',
+            url: vJob.videoUrl,
+            prompt: vJob.prompt,
+            provider: vJob.provider,
+            model: vJob.model,
+          });
+        }
+      }
+    });
+  }, [onJobComplete, saveArtifact]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
