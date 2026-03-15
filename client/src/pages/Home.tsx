@@ -37,7 +37,9 @@ import ImageGenPanel from '@/components/ImageGenPanel';
 import AudioPanel from '@/components/AudioPanel';
 import AltTextPanel from '@/components/AltTextPanel';
 import AgentOrchestratorView from '@/components/AgentOrchestratorView';
-import type { AppSettings, AppMode } from '@/lib/types';
+import type { AppSettings } from '@/lib/types';
+
+type AppMode = 'chat' | 'generate' | 'task' | 'research' | 'process';
 
 const MODES: { id: AppMode; label: string; icon: typeof MessageCircle }[] = [
   { id: 'chat', label: 'Chat', icon: MessageCircle },
@@ -51,7 +53,7 @@ export default function Home() {
   const { state, dispatch, activeConversation, createConversation } = useChat();
   const { themeName } = useTheme();
 
-  const currentMode = state.settings.mode || 'chat';
+  const currentMode = 'chat' as AppMode;
   // Modes with their own provider/model selectors — hide header dropdowns
   const modeHasOwnSelectors = ['generate', 'research'].includes(currentMode);
   const isManus = state.settings.provider === 'manus';

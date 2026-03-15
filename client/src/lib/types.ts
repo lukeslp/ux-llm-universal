@@ -120,8 +120,6 @@ export interface OllamaChatChunk {
   eval_duration?: number;
 }
 
-export type AppMode = 'chat' | 'generate' | 'task' | 'research' | 'process';
-
 export interface AppSettings {
   // Provider — which LLM backend to use
   provider: string; // 'ollama' | 'xai' | 'anthropic' | 'openai' | etc.
@@ -142,8 +140,6 @@ export interface AppSettings {
   // Tool modules — which remote tool categories are enabled
   // Empty array = all enabled; populated = only those modules
   enabledToolModules: string[];
-  // Mode — which UX mode is active
-  mode: AppMode;
 }
 
 export const OLLAMA_CLOUD_URL = 'https://ollama.com';
@@ -161,7 +157,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
   enableThinking: false,
   streamResponses: true,
   enabledToolModules: [], // empty = all enabled
-  mode: 'chat',
 };
 
 // Built-in tools are now defined in tool-service.ts

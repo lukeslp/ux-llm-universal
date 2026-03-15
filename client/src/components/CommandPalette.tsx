@@ -1,0 +1,119 @@
+// ============================================================
+// Command Palette — Cmd+K universal search/navigate/action
+// Uses shadcn Command component (cmdk)
+// ============================================================
+
+import { useCallback } from 'react';
+import { useLocation } from 'wouter';
+import {
+  MessageCircle, Sparkles, Network, Shield, LayoutGrid,
+  Plus, Search, ArrowRight,
+} from 'lucide-react';
+import {
+  CommandDialog,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandSeparator,
+  CommandShortcut,
+} from '@/components/ui/command';
+import { useConversation } from '@/contexts/ConversationContext';
+
+interface Props {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export default function CommandPalette({ open, onOpenChange }: Props) {
+  const [, navigate] = useLocation();
+  const { state, createConversation, dispatch } = useConversation();
+
+  const runCommand = useCallback((fn: () => void) => {
+    onOpenChange(false);
+    fn();
+  }, [onOpenChange]);
+
+  return (
+    <CommandDialog open={open} onOpenChange={onOpenChange}>
+      <CommandInput placeholder="Type a command or search..." />
+      <CommandList>
+        <CommandEmpty>No results found.</CommandEmpty>
+
+        {/* Navigation */}
+        <CommandGroup heading="Navigate">
+          <CommandItem onSelect={() => runCommand(() => navigate('/'))}>
+            <MessageCircle className="w-4 h-4" />
+            <span>Go to Converse</span>
+            <CommandShortcut>
+              <ArrowRight className="w-3 h-3" />
+            </CommandShortcut>
+          </CommandItem>
+          <CommandItem onSelect={() => runCommand(() => navigate('/create'))}>
+            <Sparkles className="w-4 h-4" />
+            <span>Go to Create</span>
+          </CommandItem>
+          <CommandItem onSelect={() => runCommand(() => navigate('/research'))}>
+            <Network className="w-4 h-4" />
+            <span>Go to Research</span>
+          </CommandItem>
+          <CommandItem onSelect={() => runCommand(() => navigate('/evaluate'))}>
+            <Shield className="w-4 h-4" />
+            <span>Go to Evaluate</span>
+          </CommandItem>
+          <CommandItem onSelect={() => runCommand(() => navigate('/gallery'))}>
+            <LayoutGrid className="w-4 h-4" />
+            <span>Go to Gallery</span>
+          </CommandItem>
+        </CommandGroup>
+
+        <CommandSeparator />
+
+        {/* Quick Actions */}
+        <CommandGroup heading="Actions">
+          <CommandItem onSelect={() => runCommand(() => {
+            createConversation();
+            navigate('/');
+          })}>
+            <Plus className="w-4 h-4" />
+            <span>New Chat</span>
+            <CommandShortcut>Ctrl+N</CommandShortcut>
+          </CommandItem>
+          <CommandItem onSelect={() => runCommand(() => navigate('/create'))}>
+            <Sparkles className="w-4 h-4" />
+            <span>Generate Image</span>
+          </CommandItem>
+          <CommandItem onSelect={() => runCommand(() => navigate('/research'))}>
+            <Network className="w-4 h-4" />
+            <span>Start Research</span>
+          </CommandItem>
+        </CommandGroup>
+
+        {/* Recent Conversations */}
+        {state.conversations.length > 0 && (
+          <>
+            <CommandSeparator />
+            <CommandGroup heading="Recent Conversations">
+              {state.conversations.slice(0, 8).map(conv => (
+                <CommandItem
+                  key={conv.id}
+                  onSelect={() => runCommand(() => {
+                    dispatch({ type: 'SET_ACTIVE_CONVERSATION', payload: conv.id });
+                    navigate('/');
+                  })}
+                >
+                  <Search className="w-4 h-4" />
+                  <span className="truncate">{conv.title}</span>
+                  <CommandShortcut>
+                    {conv.messages.length} msg{conv.messages.length !== 1 ? 's' : ''}
+                  </CommandShortcut>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </>
+        )}
+      </CommandList>
+    </CommandDialog>
+  );
+}

@@ -7,6 +7,8 @@ import { registerOAuthRoutes } from "./oauth";
 import { registerOllamaProxy } from "../ollama-proxy";
 import { registerDreamerProxy } from "../dreamer-proxy";
 import { registerManusProxy } from "../manus-proxy";
+import { registerBeltalowdaProxy } from "../beltalowda-proxy";
+import { registerSafeguardProxy } from "../safeguard-proxy";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
@@ -44,6 +46,10 @@ async function startServer() {
   registerDreamerProxy(app);
   // Manus task-based async agent proxy
   registerManusProxy(app);
+  // Beltalowda multi-agent research proxy (SSE bridge)
+  registerBeltalowdaProxy(app);
+  // Content safety evaluation proxy
+  registerSafeguardProxy(app);
   // tRPC API
   app.use(
     "/api/trpc",

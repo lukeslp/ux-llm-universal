@@ -1,18 +1,21 @@
 // ============================================================
 // ImageGenPanel — Image generation with provider/model filtering
-// Only shows providers that support image_generation capability
+// Uses JobContext for tracking, MediaViewer for gallery viewing
 // ============================================================
 
 import { useState, useMemo } from 'react';
-import { Image as ImageIcon, Loader2, Sparkles, AlertTriangle, X, Download } from 'lucide-react';
+import { Image as ImageIcon, Loader2, Sparkles, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { useChat } from '@/contexts/ChatContext';
+import { useProviders } from '@/contexts/ProviderContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useJobs, type ImageJob } from '@/contexts/JobContext';
 import { apiUrl } from '@/lib/api-base';
+import { MediaViewer, type MediaItem } from '@/components/MediaViewer';
 import { motion, AnimatePresence } from 'framer-motion';
+import { v4 as uuidv4 } from 'uuid';
 
 interface GeneratedImage {
   url: string;
@@ -24,40 +27,53 @@ interface GeneratedImage {
 
 export default function ImageGenPanel() {
   const { themeName } = useTheme();
-  const { state } = useChat();
+  const { providers } = useProviders();
+  const { addJob, updateJob } = useJobs();
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState(0);
 
   // Filter to providers that have image_generation capability
   const imageProviders = useMemo(
-    () => state.providers.filter(p => p.capabilities?.includes('image_generation') && p.imageGenModels?.length),
-    [state.providers],
+    () => providers.filter((p: any) => p.capabilities?.includes('image_generation') && p.imageGenModels?.length),
+    [providers],
   );
 
-  // Default to first available image provider
   const [selectedProvider, setSelectedProvider] = useState<string>(() =>
     imageProviders[0]?.id || '',
   );
-  const currentProvider = imageProviders.find(p => p.id === selectedProvider) || imageProviders[0];
+  const currentProvider = imageProviders.find((p: any) => p.id === selectedProvider) || imageProviders[0];
 
   const [selectedModel, setSelectedModel] = useState<string>(() =>
-    currentProvider?.imageGenDefault || currentProvider?.imageGenModels?.[0] || '',
+    (currentProvider as any)?.imageGenDefault || (currentProvider as any)?.imageGenModels?.[0] || '',
   );
 
-  // When provider changes, reset model to that provider's default
   const handleProviderChange = (id: string) => {
     setSelectedProvider(id);
-    const p = imageProviders.find(pr => pr.id === id);
-    setSelectedModel(p?.imageGenDefault || p?.imageGenModels?.[0] || '');
+    const p = imageProviders.find((pr: any) => pr.id === id);
+    setSelectedModel((p as any)?.imageGenDefault || (p as any)?.imageGenModels?.[0] || '');
   };
 
   const handleGenerate = async () => {
     if (!prompt.trim() || !selectedProvider || !selectedModel) return;
     setIsGenerating(true);
     setError(null);
+
+    // Track in JobContext
+    const jobId = uuidv4();
+    const job: ImageJob = {
+      id: jobId,
+      type: 'image',
+      status: 'processing',
+      prompt: prompt.trim(),
+      provider: selectedProvider,
+      model: selectedModel,
+      startedAt: Date.now(),
+    };
+    addJob(job);
 
     try {
       const res = await fetch(apiUrl('/api/image/generate'), {
@@ -85,9 +101,18 @@ export default function ImageGenPanel() {
         timestamp: Date.now(),
       }));
       setGeneratedImages(prev => [...newImages, ...prev]);
+
+      // Update job
+      updateJob(jobId, {
+        status: 'done',
+        url: urls[0],
+        completedAt: Date.now(),
+      });
       setPrompt('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Generation failed');
+      const msg = err instanceof Error ? err.message : 'Generation failed';
+      setError(msg);
+      updateJob(jobId, { status: 'error', error: msg, completedAt: Date.now() });
     } finally {
       setIsGenerating(false);
     }
@@ -99,6 +124,19 @@ export default function ImageGenPanel() {
       handleGenerate();
     }
   };
+
+  const openViewer = (index: number) => {
+    setViewerIndex(index);
+    setViewerOpen(true);
+  };
+
+  // Convert to MediaViewer format
+  const mediaItems: MediaItem[] = generatedImages.map(img => ({
+    type: 'image' as const,
+    url: img.url,
+    prompt: img.prompt,
+    metadata: { provider: img.provider, model: img.model },
+  }));
 
   const noProviders = imageProviders.length === 0;
 
@@ -136,7 +174,7 @@ export default function ImageGenPanel() {
               <p className="eyebrow mb-2">IMAGE GENERATION</p>
               <p className="text-sm">Describe an image to generate it</p>
               <p className="text-xs text-muted-foreground/50 mt-1">
-                Using {currentProvider?.name || 'provider'}, {selectedModel}
+                Using {(currentProvider as any)?.name || 'provider'}, {selectedModel}
               </p>
             </div>
           </div>
@@ -151,7 +189,7 @@ export default function ImageGenPanel() {
                   themeName === 'nebula' ? 'border border-indigo-500/20' :
                   'border border-border'
                 }`}
-                onClick={() => setLightboxIdx(i)}
+                onClick={() => openViewer(i)}
               >
                 <img src={img.url} alt={img.prompt} className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-end">
@@ -165,33 +203,13 @@ export default function ImageGenPanel() {
         )}
       </div>
 
-      {/* Lightbox */}
-      <AnimatePresence>
-        {lightboxIdx !== null && generatedImages[lightboxIdx] && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
-            onClick={() => setLightboxIdx(null)}
-          >
-            <Button
-              variant="ghost"
-              size="sm"
-              className="absolute top-4 right-4 text-white hover:bg-white/20 h-10 w-10 p-0 rounded-full"
-              onClick={() => setLightboxIdx(null)}
-            >
-              <X className="w-5 h-5" />
-            </Button>
-            <img
-              src={generatedImages[lightboxIdx].url}
-              alt={generatedImages[lightboxIdx].prompt}
-              className="max-w-full max-h-[85vh] object-contain rounded-xl"
-              onClick={e => e.stopPropagation()}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* MediaViewer — replaces simple lightbox */}
+      <MediaViewer
+        items={mediaItems}
+        initialIndex={viewerIndex}
+        open={viewerOpen}
+        onClose={() => setViewerOpen(false)}
+      />
 
       {/* Error */}
       <AnimatePresence>
@@ -207,18 +225,17 @@ export default function ImageGenPanel() {
         )}
       </AnimatePresence>
 
-      {/* Input bar with provider/model selectors */}
+      {/* Input bar */}
       {!noProviders && (
         <div className="border-t border-border bg-background/80 backdrop-blur-sm px-4 py-3">
           <div className="max-w-3xl mx-auto space-y-2">
-            {/* Provider + model selectors */}
             <div className="flex items-center gap-2">
               <Select value={selectedProvider} onValueChange={handleProviderChange}>
                 <SelectTrigger className="h-7 text-xs border-border/60 bg-transparent w-auto min-w-[100px]">
                   <SelectValue placeholder="Provider" />
                 </SelectTrigger>
                 <SelectContent>
-                  {imageProviders.map(p => (
+                  {imageProviders.map((p: any) => (
                     <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -228,14 +245,13 @@ export default function ImageGenPanel() {
                   <SelectValue placeholder="Model" />
                 </SelectTrigger>
                 <SelectContent>
-                  {(currentProvider?.imageGenModels || []).map(m => (
+                  {((currentProvider as any)?.imageGenModels || []).map((m: string) => (
                     <SelectItem key={m} value={m}>{m}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
-            {/* Prompt input + send */}
             <div className="flex items-end gap-2">
               <div className="flex-1">
                 <textarea
