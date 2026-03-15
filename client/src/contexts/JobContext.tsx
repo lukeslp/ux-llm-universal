@@ -94,7 +94,7 @@ export function JobProvider({ children }: { children: ReactNode }) {
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [pollVideoStatus]);
+  }, []); // pollVideoStatus has stable [] deps — safe to omit
 
   // Cleanup on unmount
   useEffect(() => {
