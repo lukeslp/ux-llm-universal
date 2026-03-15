@@ -73,7 +73,7 @@ export const collectionsRouter = router({
       await db.insert(collectionArtifacts).values({
         collectionId: input.collectionId,
         artifactId: input.artifactId,
-      });
+      }).onDuplicateKeyUpdate({ set: { collectionId: input.collectionId } });
       return { success: true };
     }),
 

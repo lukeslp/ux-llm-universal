@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -57,7 +57,9 @@ export const collectionArtifacts = mysqlTable("collection_artifacts", {
   id: int("id").autoincrement().primaryKey(),
   collectionId: int("collectionId").notNull(),
   artifactId: int("artifactId").notNull(),
-});
+}, (table) => [
+  uniqueIndex("uniq_collection_artifact").on(table.collectionId, table.artifactId),
+]);
 
 // ── Research Tasks ──────────────────────────────────────────────
 export const researchTasks = mysqlTable("research_tasks", {
